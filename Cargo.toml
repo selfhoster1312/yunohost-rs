@@ -1,0 +1,133 @@
+[package]
+name = "yunohost"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+strip = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# UTF-8 types for easier manipulation
+camino = { version = "1.1", features = [ "serde1" ] }
+# Command-line arguments parsing
+clap = { version = "4.5", features = ["derive"] }
+# helpers/regenconf.rs: generate file diffs
+difflib = "0.4"
+# helpers/file.rs: higher-level file manipulation
+file-owner = "0.1"
+# globbing paths (eg. `/etc/nginx/**/*`)
+glob = "0.3"
+# helpers/ldap.rs: interact with the LDAP database for users/permissions
+ldap3 = { version = "0.11", default-features = false }
+# Interfaecs for logging (see pretty_env_logger)
+log = "0.4"
+# helpers/regenconf.rs: for hashing files
+md5 = "0.7"
+# Colored logging to the console/log
+pretty_env_logger = "0.5"
+# Parallel processing
+# rayon = "1.10"
+# Interfaces for serialization/deserialization (see serde_json/serde_yaml_ng)
+serde = { version = "1", features = [ "derive" ] }
+# JSON serialization/deserialization
+serde_json = { version = "1", features = [ "preserve_order" ] }
+# YAML serialization/deserialization
+serde_yaml_ng = "0.9"
+# Error handling and Result::context method
+snafu = "0.8"
+# Async runtime for network queries (for now only ldap3)
+tokio = { version = "1.37", features = [ "rt", "net" ] }
+
+[lib]
+name = "yunohost"
+path = "src/lib.rs"
+
+[[bin]]
+name = "01-yunohost"
+path = "hooks/conf_regen/01-yunohost.rs"
+
+[[bin]]
+name = "yunohost-hook"
+path = "src/hook.rs"
+
+[[bin]]
+name = "yunohost-tools"
+path = "src/tools.rs"
+
+[[bin]]
+name = "yunohost-user"
+path = "src/user.rs"
+
+# [[bin]]
+# name = "yunohost-regenconf"
+# path = "src/regenconf.rs"
+
+# [[bin]]
+# name = "02-ssl"
+# path = "src/hooks/02-ssl.rs"
+
+# [[bin]]
+# name = "03-ssh"
+# path = "src/hooks/03-ssh.rs"
+
+# [[bin]]
+# name = "06-slapd"
+# path = "src/hooks/06-slapd.rs"
+
+# [[bin]]
+# name = "09-nslcd"
+# path = "src/hooks/09-nslcd.rs"
+
+# [[bin]]
+# name = "10-apt"
+# path = "src/hooks/10-apt.rs"
+
+# [[bin]]
+# name = "12-metronome"
+# path = "src/hooks/12-metronome.rs"
+
+# [[bin]]
+# name = "15-nginx"
+# path = "src/hooks/15-nginx.rs"
+
+# [[bin]]
+# name = "19-postfix"
+# path = "src/hooks/19-postfix.rs"
+
+# [[bin]]
+# name = "25-dovecot"
+# path = "src/hooks/25-dovecot.rs"
+
+# [[bin]]
+# name = "31-rspamd"
+# path = "src/hooks/31-rspamd.rs"
+
+# [[bin]]
+# name = "34-mysql"
+# path = "src/hooks/34-mysql.rs"
+
+# [[bin]]
+# name = "35-postgresql"
+# path = "src/hooks/35-postgresql.rs"
+
+# [[bin]]
+# name = "36-redis"
+# path = "src/hooks/36-redis.rs"
+
+# [[bin]]
+# name = "37-mdns"
+# path = "src/hooks/37-mdns.rs"
+
+# [[bin]]
+# name = "43-dnsmasq"
+# path = "src/hooks/43-dnsmasq.rs"
+
+# [[bin]]
+# name = "46-nsswitch"
+# path = "src/hooks/46-nsswitch.rs"
+
+# [[bin]]
+# name = "52-fail2ban"
+# path = "src/hooks/52-fail2ban.rs"
