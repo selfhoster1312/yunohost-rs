@@ -9,4 +9,4 @@ benchPythonRust plain "settings" get security
 benchPythonRust plain "settings" get security.webadmin
 
 # Single option
-benchPythonRust plain "settings" get security.webadmin.webadmin_allowlist
+benchPythonRust plain "settings" get security.webadmin.webadmin_allowlist_enabled

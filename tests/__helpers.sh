@@ -58,7 +58,6 @@ benchPythonRust() {
   pythonCode=$?
   pythonOutput="$(cat /tmp/test.output)"
   if OUTPUT="$pythonOutput" formatSuccess $pythonCode ERROR "$(cat /tmp/yunohost-compat/test.time)" > /tmp/test.status; then
-    pythonStatus="$(cat /tmp/test.status)"
     parsedOutput "$diffFormat" "$pythonOutput" &> /tmp/test.parsed.output
     pythonParsedCode=$?
     pythonParsedOutput="$(cat /tmp/test.parsed.output)"
@@ -68,7 +67,6 @@ benchPythonRust() {
       echo -e "\n----------------- (COMMAND FINISHED HERE, PARSING ERRORS BELOW)" >> /tmp/test.output
       echo "$pythonParsedOutput" >> /tmp/test.output
       OUTPUT="$(cat /tmp/test.output)" formatSuccess 1 INVALID > /tmp/test.status
-      pythonStatus="$(cat /tmp/test.status)"
       pythonCode=1
     else
       echo "$pythonParsedOutput" > /tmp/yunohost-compat/python.parsed
@@ -77,19 +75,18 @@ benchPythonRust() {
   else
     pythonCode=1
   fi
+  pythonStatus="$(cat /tmp/test.status)"
 
   startBench /tmp/yunohost-compat/yunohost-$yunoCmd "$@" &> /tmp/test.output
   rustCode=$?
   rustOutput="$(cat /tmp/test.output)"
   if OUTPUT="$rustOutput" formatSuccess $rustCode ERROR "$(cat /tmp/yunohost-compat/test.time)" > /tmp/test.status; then
-    rustStatus="$(cat /tmp/test.status)"
     parsedOutput "$diffFormat" "$rustOutput" > /tmp/test.parsed.output
     rustParsedCode=$?
     rustParsedOutput="$(cat /tmp/test.parsed.output)"
 
     if [ ! $rustParsedCode -eq 0 ]; then
       OUTPUT="$rustParsedOutput" formatSuccess 1 INVALID > /tmp/test.status
-      rustStatus="$(cat /tmp/test.status)"
       rustCode=1
     else
       echo "$rustParsedOutput" > /tmp/yunohost-compat/rust.parsed
@@ -98,6 +95,7 @@ benchPythonRust() {
   else
     rustCode=1
   fi
+  rustStatus="$(cat /tmp/test.status)"
 
   if [ $rustCode -eq 0 ] && [ $pythonCode -eq 0 ]; then
     # Compare output side by side, with python on the left
