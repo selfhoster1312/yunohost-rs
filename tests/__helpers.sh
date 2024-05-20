@@ -20,10 +20,13 @@ startBench() {
 parsedOutput() {
   case "$1" in
     "json")
-      echo "$2" | jq --sort-keys '.' > /tmp/parsed.output
+      echo "$2" | jq --sort-keys '.'
       ;;
     "yaml")
-      echo "$2" | yq 'sort_keys(..)' > /tmp/parsed.output
+      echo "$2" | yq 'sort_keys(..)'
+      ;;
+    "plain")
+      echo "$2"
       ;;
   esac
 }
@@ -37,7 +40,8 @@ formatSuccess() {
     fi
   else
     tmp="$(mktemp)"
-    echo -n "$OUTPUT" > "$tmp"
+    # Still allow newline in error output
+    echo "$OUTPUT" > "$tmp"
     echo -n "$(red $2) - $tmp"
     return 1
   fi
@@ -50,10 +54,21 @@ benchPythonRust() {
   shift
   args="$@"
 
-  pythonOutput="$(startBench yunohost $yunoCmd "$@")"
-  if OUTPUT="$pythonOutput" pythonStatus="$(formatSuccess $? ERROR "$(cat /tmp/yunohost-compat/test.time)")"; then
-    if ! pythonParsedOutput="(parsedOutput "$diffFormat" "$pythonOutput")"; then
-      OUTPUT="$pythonParsedOutput" pythonStatus="$(formatSuccess 1 INVALID)"
+  startBench yunohost $yunoCmd "$@" &> /tmp/test.output
+  pythonCode=$?
+  pythonOutput="$(cat /tmp/test.output)"
+  if OUTPUT="$pythonOutput" formatSuccess $pythonCode ERROR "$(cat /tmp/yunohost-compat/test.time)" > /tmp/test.status; then
+    pythonStatus="$(cat /tmp/test.status)"
+    parsedOutput "$diffFormat" "$pythonOutput" &> /tmp/test.parsed.output
+    pythonParsedCode=$?
+    pythonParsedOutput="$(cat /tmp/test.parsed.output)"
+
+    if [ ! $pythonParsedCode -eq 0 ]; then
+      # Parsing failed, place output + parsing errors in single file
+      echo -e "\n----------------- (COMMAND FINISHED HERE, PARSING ERRORS BELOW)" >> /tmp/test.output
+      echo "$pythonParsedOutput" >> /tmp/test.output
+      OUTPUT="$(cat /tmp/test.output)" formatSuccess 1 INVALID > /tmp/test.status
+      pythonStatus="$(cat /tmp/test.status)"
       pythonCode=1
     else
       echo "$pythonParsedOutput" > /tmp/yunohost-compat/python.parsed
@@ -63,10 +78,18 @@ benchPythonRust() {
     pythonCode=1
   fi
 
-  rustOutput="$(startBench /tmp/yunohost-compat/yunohost-$yunoCmd "$@")"
-  if OUTPUT="$rustOutput" rustStatus="$(formatSuccess $? ERROR "$(cat /tmp/yunohost-compat/test.time)")"; then
-    if ! rustParsedOutput="(parsedOutput "$diffFormat" "$pythonOutput")"; then
-      OUTPUT="$rustParsedOutput" rustStatus="$(formatSuccess 1 INVALID)"
+  startBench /tmp/yunohost-compat/yunohost-$yunoCmd "$@" &> /tmp/test.output
+  rustCode=$?
+  rustOutput="$(cat /tmp/test.output)"
+  if OUTPUT="$rustOutput" formatSuccess $rustCode ERROR "$(cat /tmp/yunohost-compat/test.time)" > /tmp/test.status; then
+    rustStatus="$(cat /tmp/test.status)"
+    parsedOutput "$diffFormat" "$rustOutput" > /tmp/test.parsed.output
+    rustParsedCode=$?
+    rustParsedOutput="$(cat /tmp/test.parsed.output)"
+
+    if [ ! $rustParsedCode -eq 0 ]; then
+      OUTPUT="$rustParsedOutput" formatSuccess 1 INVALID > /tmp/test.status
+      rustStatus="$(cat /tmp/test.status)"
       rustCode=1
     else
       echo "$rustParsedOutput" > /tmp/yunohost-compat/rust.parsed
