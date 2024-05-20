@@ -100,7 +100,8 @@ benchPythonRust() {
   fi
 
   if [ $rustCode -eq 0 ] && [ $pythonCode -eq 0 ]; then
-    output_diff="$(diff /tmp/yunohost-compat/python.parsed /tmp/yunohost-compat/rust.parsed)"
+    # Compare output side by side, with python on the left
+    output_diff="$(diff --side-by-side /tmp/yunohost-compat/python.parsed /tmp/yunohost-compat/rust.parsed)"
     OUTPUT="$output_diff" diffStatus="$(formatSuccess $? DIFF)"
   else
     diffStatus="SKIP"
