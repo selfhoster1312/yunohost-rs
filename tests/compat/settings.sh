@@ -3,10 +3,10 @@
 source /tmp/yunohost-compat/__helpers.sh
 
 # Panel list options
-benchPythonRust plain "settings" get security
+benchPythonRust json "settings" get --json security
 
 # Section list options
-benchPythonRust plain "settings" get security.webadmin
+benchPythonRust json "settings" get --json security.webadmin
 
 # Single option
-benchPythonRust plain "settings" get security.webadmin.webadmin_allowlist_enabled
+benchPythonRust json "settings" get --json security.webadmin.webadmin_allowlist_enabled

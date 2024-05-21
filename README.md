@@ -44,13 +44,13 @@ To run the integration test, give access for your machine's SSH key to a remote 
 Server kl.netlib.re is ready for tests
 __runner.sh hook.sh tools.sh user.sh
 DIFF                        PYTHON      RUST                         COMMAND
-DIFF - /tmp/tmp.DY1zRKNThj  OK (0.15s)  OK (0.00s)                   yunohost hook list --json conf_regen
-DIFF - /tmp/tmp.QcXC34kldM  OK (0.21s)  OK (0.00s)                   yunohost settings get security
-DIFF - /tmp/tmp.qVaoof9PUe  OK (0.20s)  OK (0.00s)                   yunohost settings get security.webadmin
-SKIP                        OK (0.17s)  ERROR - /tmp/tmp.n2F4kupV9r  yunohost settings get security.webadmin.webadmin_allowlist_enabled
-DIFF - /tmp/tmp.V1XYSGAhVX  OK (0.76s)  OK (0.00s)                   yunohost tools regen-conf --list-pending --json
-OK                          OK (0.22s)  OK (0.00s)                   yunohost user list --json
-DIFF - /tmp/tmp.8gaoWZR0Mf  OK (0.59s)  OK (0.00s)                   yunohost user info --json test2
+DIFF - /tmp/tmp.NJ33lvt6jQ  OK (0.32s)  OK (0.00s)  yunohost hook list --json conf_regen
+DIFF - /tmp/tmp.dfIKQkmask  OK (0.40s)  OK (0.00s)  yunohost settings get --json security
+DIFF - /tmp/tmp.R2q2z26rc2  OK (0.36s)  OK (0.00s)  yunohost settings get --json security.webadmin
+OK                          OK (0.28s)  OK (0.00s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
+DIFF - /tmp/tmp.qwZLB3DCjg  OK (0.51s)  OK (0.01s)  yunohost tools regen-conf --list-pending --json
+OK                          OK (0.31s)  OK (0.01s)  yunohost user list --json
+DIFF - /tmp/tmp.eDk6n9ULyR  OK (0.82s)  OK (0.00s)  yunohost user info --json test2
 ```
 
 Some notes about integration tests:
@@ -70,11 +70,11 @@ Just one note about Rust execution speed: **YES IT IS THAT FAST**. Sometimes whe
 - [x] rewrite `yunohost user list` in Rust (TODO: `--fields` argument)
 - [ ] rewrite the regen-conf engine in Rust
 - [ ] rewrite all regen-conf engine/hooks in Rust
-- [ ] rewrite `yunohost settings get` in Rust
+- [~] rewrite `yunohost settings get` in Rust (initial very incomplete implementation)
 - [x] output comparison in integration tests
 - [x] timing information in integration tests
 - [ ] Github Pages crate documentation
-- [ ] Utf8Path (camino) integration for easier Path<->str interop
+- [x] Utf8Path (camino) integration for easier Path<->str interop
 - [ ] publish Debian repo on Github pages so people can test it without compiling
 - [ ] rewrite moulinette.i18n for translations
 - [ ] rewrite moulinette actionsmap parser and integrate with real Yunohost

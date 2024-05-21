@@ -180,8 +180,9 @@ pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(
     Ok(())
 }
 
-pub fn read<T: AsRef<Path>>(source: T) -> Result<String, std::io::Error> {
-    fs::read_to_string(source)
+pub fn read<T: AsRef<str>>(path: T) -> Result<String, Error> {
+    let path = Utf8PathBuf::from(path.as_ref());
+    fs::read_to_string(&path).context(ReadSnafu { path: path })
 }
 
 /// Lists the paths in a directory. See [`ReadDir::new`] to instantiate it.

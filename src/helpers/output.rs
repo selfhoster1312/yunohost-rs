@@ -2,6 +2,7 @@ use serde::Serialize;
 use snafu::prelude::*;
 
 use std::fmt::Debug;
+use std::process::exit;
 
 use crate::error::*;
 
@@ -18,4 +19,36 @@ pub fn json_or_yaml_output<T: Debug + Serialize>(output: &T, json: bool) -> Resu
     };
 
     Ok(output)
+}
+
+pub fn print_error_sources<E: std::error::Error>(error: E) {
+    if let Some(source) = error.source() {
+        print_error_sources(source);
+    }
+
+    eprintln!("{error}");
+}
+
+pub fn fallible_output<T: Debug + std::fmt::Display + Serialize>(
+    output: Result<T, Error>,
+    json: bool,
+) {
+    match output {
+        Ok(output) => match json_or_yaml_output(&output, json) {
+            Ok(serialized) => {
+                println!("{}", serialized);
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+                error!("An error occured, see backtrace above.");
+                exit(1)
+            }
+        },
+        Err(e) => {
+            print_error_sources(e);
+            // eprintln!("{}", e);
+            error!("An error occured, see above.");
+            exit(1)
+        }
+    }
 }

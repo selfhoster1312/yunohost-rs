@@ -8,6 +8,8 @@ strip = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# Some entries in the dependencies are commented because they are not used (yet?)
+# but can prove useful in the future.
 [dependencies]
 # UTF-8 types for easier manipulation
 camino = { version = "1.1", features = [ "serde1" ] }
@@ -25,6 +27,8 @@ ldap3 = { version = "0.11", default-features = false }
 log = "0.4"
 # helpers/regenconf.rs: for hashing files
 md5 = "0.7"
+# compile-time hashmaps/dicts
+phf = { version = "0.11", features = [ "macros", "serde" ] }
 # Colored logging to the console/log
 pretty_env_logger = "0.5"
 # Parallel processing
@@ -35,10 +39,16 @@ serde = { version = "1", features = [ "derive" ] }
 serde_json = { version = "1", features = [ "preserve_order" ] }
 # YAML serialization/deserialization
 serde_yaml_ng = "0.9"
+# Serialize/Deserialize helper macros
+serde_with = "3.8"
 # Error handling and Result::context method
 snafu = "0.8"
+# str-valued enums
+strum = { version = "0.26", features = ["derive"] }
 # Async runtime for network queries (for now only ldap3)
 tokio = { version = "1.37", features = [ "rt", "net" ] }
+# helpers/configpanel.rs: reading TOML settings
+toml = { version = "0.8", features = [ "preserve_order", "display" ] }
 
 [lib]
 name = "yunohost"
@@ -51,6 +61,10 @@ path = "hooks/conf_regen/01-yunohost.rs"
 [[bin]]
 name = "yunohost-hook"
 path = "src/hook.rs"
+
+[[bin]]
+name = "yunohost-settings"
+path = "src/settings.rs"
 
 [[bin]]
 name = "yunohost-tools"

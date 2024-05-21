@@ -2,6 +2,8 @@ use camino::Utf8PathBuf;
 
 use std::path::PathBuf;
 
+use crate::helpers;
+
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum Error {
@@ -19,6 +21,107 @@ pub enum Error {
     ChangeDPKGVendorWrite {
         #[snafu(source(from(Error, Box::from)))]
         source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    // ===================
+    // src/helpers/configpanel.rs
+    // ===================
+    //     fn get (ConfigPanel::get)
+    #[snafu(display("No config panel could be loaded"))]
+    ConfigNoPanel {
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    //     fn _get_config_panel (ConfigPanel::_get_config_panel)
+    #[snafu(display(
+        "ConfigPanel::_get_config_panel cannot have so many levels in filter_key: {}",
+        filter_key
+    ))]
+    ConfigPanelTooManySublevels { filter_key: String },
+
+    #[snafu(display("ConfigPanel::_get_config_panel cannot find config file: {path}"))]
+    ConfigPanelReadConfigNotPath { path: Utf8PathBuf },
+
+    #[snafu(display("ConfigPanel::_get_config_panel: Option id {id} is a forbidden keyword."))]
+    ConfigPanelReadConfigForbiddenKeyword { id: String },
+
+    #[snafu(display("ConfigPanel::_get_config_panel: Option has no id?! See:\n{}", option))]
+    ConfigPanelReadConfigOptionNoId { option: toml::Value },
+
+    //     fn _get_raw_config (ConfigPanel::_get_raw_config)
+    #[snafu(display("ConfigPanel::_get_raw_config failed to read config for {}", entity))]
+    ConfigPanelReadConfigPath {
+        entity: String,
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[snafu(display(
+        "ConfigPanel::_get_raw_config failed to parse invalid TOML for {}",
+        entity
+    ))]
+    ConfigPanelReadConfigPathToml {
+        entity: String,
+        source: toml::de::Error,
+    },
+
+    //     fn _hydrate (ConfigPanel::_hydrate)
+    #[snafu(display(
+        "ConfigPanel::_hydrate: Question {id} should be initialized during install or upgrade"
+    ))]
+    ConfigPanelHydrateValueNotSet { id: String },
+
+    //     fn has_first_entry_in_toml_table_sub_tables
+    #[snafu(display(
+        "ConfigPanel::has_first_entry_in_toml_table_sub_tables: MALFORMED:\n{:#?}",
+        table
+    ))]
+    ConfigPanelMalformed { table: toml::Table },
+
+    //     fn from_config_panel_table (ConfigPanelVersion::from_config_panel_table)
+    #[snafu(display("No version field in config panel"))]
+    ConfigPanelConfigVersionMissing,
+
+    #[snafu(display("Unknown (float) version field in config panel: {version}"))]
+    ConfigPanelConfigVersionWrongFloat { version: f64 },
+
+    #[snafu(display("Unknown (str) version field in config panel: {version}"))]
+    ConfigPanelConfigVersionWrongStr { version: String },
+
+    #[snafu(display("Unknown type of version field in config panel: {value:?}"))]
+    ConfigPanelConfigVersionWrongType { value: toml::Value },
+
+    #[snafu(display(
+        "Failed to find valid config panel version for entity {entity} at path {path}"
+    ))]
+    ConfigPanelVersion {
+        entity: String,
+        path: Utf8PathBuf,
+
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[snafu(display("Unsupported version {} in config panel for entity {entity} at path {path}"))]
+    ConfigPanelVersionUnsupported {
+        entity: String,
+        version: helpers::configpanel::ConfigPanelVersion,
+        path: Utf8PathBuf,
+    },
+
+    //     _get_raw_settings (ConfigPanel::_get_raw_settings)
+    #[snafu(display("Config::_get_raw_settings failed to read config for {}", entity))]
+    ConfigPanelReadSavePath {
+        entity: String,
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[snafu(display("Config::_get_raw_settings failed to read config for {}", entity))]
+    ConfigPanelReadSavePathYaml {
+        entity: String,
+        source: serde_yaml_ng::Error,
     },
 
     // ===================
@@ -69,6 +172,13 @@ pub enum Error {
         source: std::io::Error,
     },
 
+    //     fn read
+    #[snafu(display("read failed to read {}", path))]
+    Read {
+        path: Utf8PathBuf,
+        source: std::io::Error,
+    },
+
     #[snafu(display("Utf8PathBuf::from_path_buf failed because path is not valid UTF8: {}", path.display()))]
     InvalidUnicodePath { path: PathBuf },
 
@@ -92,7 +202,8 @@ pub enum Error {
     ))]
     YunohostGroupExistsRead {
         name: String,
-        source: std::io::Error,
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
     },
 
     //     fn add (YunohostGroup::add)
@@ -182,6 +293,12 @@ pub enum Error {
         #[snafu(source(from(Error, Box::new)))]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+
+    // ===================
+    // src/helpers/settings.rs
+    // ===================
+    #[snafu(display("You can't use --full and --export together."))]
+    SettingsNoExportAndFull,
 
     // ===================
     // src/helpers/users.rs

@@ -5,13 +5,13 @@ use snafu::prelude::*;
 
 use std::collections::BTreeMap;
 use std::fs::remove_dir_all;
-use std::path::{Path, PathBuf};
 
 use crate::{error::*, helpers::file::*};
 
 pub const BASE_CONF_DIR: &'static str = "/var/cache/yunohost/regenconf";
 pub const BACKUP_CONF_DIR: &'static str = "/var/cache/yunohost/backup";
 pub const PENDING_CONF_DIR: &'static str = "/var/cache/yunohost/pending";
+pub const REGEN_CONF_FILE: &'static str = "/etc/yunohost/regenconf.yml";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RegenConfFile {
@@ -20,12 +20,8 @@ pub struct RegenConfFile {
 }
 
 impl RegenConfFile {
-    pub fn path() -> PathBuf {
-        PathBuf::from("/etc/yunohost/regenconf.yml")
-    }
-
     pub fn load() -> Result<Self, serde_yaml_ng::Error> {
-        serde_yaml_ng::from_str(&read(&Self::path()).unwrap())
+        serde_yaml_ng::from_str(&read(REGEN_CONF_FILE).unwrap())
     }
 }
 
@@ -164,8 +160,8 @@ fn _get_regenconf_hashes(
 }
 
 /// Empty files are emptied out later... for now they have a hash
-fn _calculate_hash(path: &Path) -> Option<String> {
-    if !is_file(path) {
+fn _calculate_hash(path: &Utf8Path) -> Option<String> {
+    if !path.is_file() {
         return None;
     }
 
@@ -187,7 +183,7 @@ fn _update_conf_hashes(
     }
 }
 
-fn _get_files_diff(orig_file: &Path, new_file: &Path) -> String {
+fn _get_files_diff(orig_file: &Utf8Path, new_file: &Utf8Path) -> String {
     let orig_file = read(orig_file).unwrap_or(String::new());
     let orig_lines = orig_file.lines().collect::<Vec<&str>>();
     let new_file = read(new_file).unwrap_or(String::new());
