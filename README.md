@@ -62,6 +62,25 @@ Some notes about integration tests:
 
 Just one note about Rust execution speed: **YES IT IS THAT FAST**. Sometimes when the server is busy it will climb to 0.01s for one command, otherwise `time -f %e` is not capable to time it properly. I'm fine with that, this is not a scientific benchmark it's just to make sure it's not horribly slow because of a mistake.
 
+## Test something about the Python version
+
+It's complicated because it's all very interconnected. However, if you'd like to get a small subsystem, you can do something like this:
+
+```
+#! /usr/bin/env python3
+
+from moulinette import m18n
+from yunohost.settings import SettingsConfigPanel
+
+m18n.set_locales_dir("/usr/share/yunohost/locales")
+m18n.set_locale("en")
+
+settings = SettingsConfigPanel()
+print(settings.get("", "classic"))
+```
+
+**Note:** If you don't initialize the localization, nothing will work! So this snippet may prove useful.
+
 ## TODO
 
 - [x] proper error management
