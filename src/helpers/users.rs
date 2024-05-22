@@ -1,11 +1,16 @@
+use regex::Regex;
 use snafu::prelude::*;
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
+use std::sync::OnceLock;
+
+pub static REGEX_MAILUSAGE: OnceLock<Regex> = OnceLock::new();
 
 use crate::{
     error::*,
-    helpers::{file::read, ldap::LdapUser, process::cmd},
+    helpers::{file::read, ldap::*, process::cmd, service::*},
+    moulinette::i18n,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -207,6 +212,112 @@ impl UserQuery {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MailStorageUse {
+    limit: String,
+    #[serde(rename = "use")]
+    mail_use: String,
+}
+
+impl MailStorageUse {
+    pub fn from_name_and_quota(user: &str, quota: &str) -> Result<Self, Error> {
+        let limit = if quota.starts_with("0") {
+            i18n::n("unlimit", None)?
+        } else {
+            quota.to_string()
+        };
+
+        let mut mail_use = String::from("?");
+
+        if !SystemCtl::is_active("dovecot") {
+            warn!(
+                "{}",
+                i18n::n("mailbox_used_space_dovecot_down", None).context(
+                    MailStorageLookupSnafu {
+                        user: user.to_string(),
+                    }
+                )?
+            );
+        } else if !YunohostPermissionInfo::permission("mail.main")
+            .context(MailStorageLookupSnafu {
+                user: user.to_string(),
+            })?
+            .corresponding_users
+            .contains(&user.to_string())
+        {
+            debug!(
+                "{}",
+                i18n::n(
+                    "mailbox_disabled",
+                    Some(hashmap!("user".to_string() => user.to_string()))
+                )
+                .context(MailStorageLookupSnafu {
+                    user: user.to_string(),
+                })?
+            );
+        } else {
+            let output = cmd("doveadm", vec!["-f", "flow", "quota", "get", "-u", user]).context(
+                MailStorageLookupSnafu {
+                    user: user.to_string(),
+                },
+            )?;
+            let output = String::from_utf8_lossy(&output.stdout);
+
+            // Use a global Regex for the life of the program, in case we're running in a loop, because generating
+            // the regex could become the bottleneck...
+            // UNWRAP NOTE: The regex cannot fail because it's well-known.
+            let re = REGEX_MAILUSAGE.get_or_init(|| Regex::new(r"Value=(\d+)").unwrap());
+            if let Some(captures) = re.captures(&output) {
+                // TODO: human format
+                mail_use = captures.get(1).unwrap().as_str().to_string();
+            }
+        }
+
+        Ok(Self { limit, mail_use })
+    }
+}
+
+/// A permission on the Yunohost system, with associated users.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct YunohostPermissionInfo {
+    pub name: String,
+    pub corresponding_users: Vec<String>,
+}
+
+impl YunohostPermissionInfo {
+    pub fn permission(name: &str) -> Result<YunohostPermissionInfo, Error> {
+        let permissions = LdapPermission::one_off_permissions()?;
+
+        for perm in permissions {
+            if perm.name == name {
+                return Ok(YunohostPermissionInfo::try_from(perm)?);
+            }
+        }
+
+        Err(Error::LdapPermissionNotFound {
+            name: name.to_string(),
+        })
+    }
+}
+
+impl TryFrom<LdapPermission> for YunohostPermissionInfo {
+    type Error = Error;
+
+    fn try_from(perm: LdapPermission) -> Result<YunohostPermissionInfo, Error> {
+        Ok(YunohostPermissionInfo {
+            name: perm.name,
+            // inheritPermission was requested so this should be safe unwrap
+            corresponding_users: perm
+                .attrs
+                .get("inheritPermission")
+                .unwrap()
+                .into_iter()
+                .map(|dn| LdapUser::uid_from_dn(&dn))
+                .collect(),
+        })
+    }
+}
+
 /// A user on the Yunohost system.
 ///
 /// More specifically, an entry with `username` *uid* in the `ou=users` in the
@@ -226,7 +337,7 @@ pub struct YunohostUserInfo {
     #[serde(rename = "mail-forward")]
     pub mail_forward: Vec<String>,
     #[serde(rename = "mailbox-quota")]
-    pub mailbox_quota: Option<String>,
+    pub mailbox_quota: MailStorageUse,
 }
 
 impl YunohostUserInfo {
@@ -235,12 +346,27 @@ impl YunohostUserInfo {
         let query: UserQuery = query.into();
         let user = LdapUser::one_off_get_user(&query)?;
 
-        Ok(YunohostUserInfo::from(user))
+        Ok(YunohostUserInfo::try_from(user)?)
     }
 }
 
-impl From<LdapUser> for YunohostUserInfo {
-    fn from(user: LdapUser) -> YunohostUserInfo {
+impl TryFrom<LdapUser> for YunohostUserInfo {
+    type Error = Error;
+
+    fn try_from(user: LdapUser) -> Result<YunohostUserInfo, Error> {
+        debug!("{:#?}", &user);
+
+        // let mailbox_quota = user.attrs.get("mailuserquota").map(|_x| "TODO".to_string());
+        let mailbox_quota = MailStorageUse::from_name_and_quota(
+            &user.name,
+            user.attrs
+                .get("mailuserquota")
+                .unwrap()
+                .iter()
+                .nth(0)
+                .unwrap(),
+        )?;
+
         let mut mail_aliases: Vec<String> = vec![];
         for addr in user
             .attrs
@@ -263,11 +389,7 @@ impl From<LdapUser> for YunohostUserInfo {
             mail_forward.push(addr.to_string());
         }
 
-        let mailbox_quota = user.attrs.get("mailuserquota").map(|_x| "TODO".to_string());
-
-        // TODO: mailbox occupation
-
-        YunohostUserInfo {
+        Ok(YunohostUserInfo {
             username: user.name,
             fullname: user
                 .attrs
@@ -296,7 +418,7 @@ impl From<LdapUser> for YunohostUserInfo {
             mail_aliases,
             mail_forward,
             mailbox_quota,
-        }
+        })
     }
 }
 

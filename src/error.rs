@@ -1,5 +1,6 @@
 use camino::Utf8PathBuf;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::helpers;
@@ -240,6 +241,9 @@ pub enum Error {
         query: crate::helpers::users::UserQuery,
     },
 
+    #[snafu(display("Failed to lookup permission {name}"))]
+    LdapPermissionNotFound { name: String },
+
     // TODO
     #[snafu(display("Empty username provided for login"))]
     LdapEmptyUsername,
@@ -319,6 +323,13 @@ pub enum Error {
         source: serde_json::Error,
     },
 
+    #[snafu(display("Failed to lookup the mail storage used by user {user}"))]
+    MailStorageLookup {
+        user: String,
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
     // ===================
     // src/helpers/ldap.rs
     // ===================
@@ -329,6 +340,47 @@ pub enum Error {
 
     #[snafu(display("UserAttr: cannot request user password from LDAP"))]
     LdapUserAttrNotPassword,
+
+    // ===================
+    // src/moulinette/i18n.rs
+    // ===================
+
+    //     fn new (Translator::new)
+    #[snafu(display("Failed to read the locales from {}", path))]
+    LocalesReadFailed {
+        path: Utf8PathBuf,
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[snafu(display("Failed to load JSON locale {}", path))]
+    LocalesLoadFailed {
+        path: Utf8PathBuf,
+        source: serde_json::Error,
+    },
+
+    //     fn translate (Translator::translate)
+    #[snafu(display("Missing translation key: {key}"))]
+    LocalesMissingKey { key: String },
+
+    #[snafu(display("Failed to format translation key {key} with the args:\n{:?}", args))]
+    LocalesFormatting {
+        key: String,
+        args: Option<HashMap<String, String>>,
+        source: strfmt::FmtError,
+    },
+
+    #[snafu(display("Failed to load Yunohost locales"))]
+    Moulinette18nYunohost {
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[snafu(display("Failed to load Moulinette locales"))]
+    Moulinette18nMoulinette {
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 
     // ===================
     // hooks/conf_regen/01-yunohost.rs

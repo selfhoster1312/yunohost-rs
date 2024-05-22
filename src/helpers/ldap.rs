@@ -125,7 +125,7 @@ impl YunohostLDAP {
                 .collect();
             Ok(res)
         } else {
-            error!("Failed LDAP query for users, returning empty userlist.");
+            error!("Failed LDAP query for {}, returning empty userlist.", query);
             Ok(Vec::new())
         }
     }
@@ -170,6 +170,75 @@ impl YunohostLDAP {
             Ok(Some(SearchEntry::construct(res)))
         } else {
             Ok(None)
+        }
+    }
+}
+
+/// Raw data about a permission, from the LDAP database.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LdapPermission {
+    pub name: String,
+    pub dn: String,
+    pub attrs: HashMap<String, Vec<String>>,
+    pub other: HashMap<String, Vec<Vec<u8>>>,
+}
+
+impl LdapPermission {
+    pub fn one_off_permissions() -> Result<Vec<LdapPermission>, Error> {
+        let rt = RuntimeBuilder::new_current_thread()
+            .enable_io()
+            .enable_time()
+            .build()
+            .unwrap();
+
+        let permissions_list = rt.block_on(async {
+            let ldap = YunohostLDAP::new(1000).await?;
+
+            let attrs: Vec<&'static str> = vec![
+                "cn",
+                "groupPermission",
+                "inheritPermission",
+                "URL",
+                "additionalUrls",
+                "authHeader",
+                "label",
+                "showTile",
+                "isProtected",
+            ];
+
+            let permissions = ldap
+                .list(
+                    "ou=permission,dc=yunohost,dc=org",
+                    Scope::OneLevel,
+                    "(objectclass=permissionYnh)",
+                    attrs,
+                )
+                .await?;
+
+            Ok(permissions)
+        })?;
+
+        let mut new_list: Vec<LdapPermission> = vec![];
+        for entry in permissions_list {
+            new_list.push(LdapPermission::from_search_entry(entry));
+        }
+
+        Ok(new_list)
+    }
+
+    pub fn cn_from_dn(dn: &str) -> String {
+        // TODO: error handling?
+        dn.trim_start_matches("cn=")
+            .trim_end_matches(",ou=permission,dc=yunohost,dc=org")
+            .to_string()
+    }
+
+    pub fn from_search_entry(se: SearchEntry) -> LdapPermission {
+        LdapPermission {
+            name: Self::cn_from_dn(&se.dn),
+            dn: se.dn,
+            attrs: se.attrs,
+            other: se.bin_attrs,
         }
     }
 }

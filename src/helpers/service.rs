@@ -100,4 +100,9 @@ impl SystemCtl {
         let output = String::from_utf8_lossy(&output.stdout);
         output.lines().any(|x| x.starts_with(&unit))
     }
+
+    pub fn is_active(unit: &str) -> bool {
+        let output = cmd("systemctl", vec!["is-active", "--quiet", unit]).unwrap();
+        output.status.success()
+    }
 }

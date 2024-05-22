@@ -5,6 +5,7 @@ use yunohost::{
     error::*,
     helpers::output::*,
     helpers::users::{UserAttr, UserQuery, YunohostUserInfo, YunohostUsers},
+    moulinette::i18n,
 };
 
 #[derive(Clone, Debug, Parser)]
@@ -86,6 +87,8 @@ fn main() -> Result<(), Error> {
             .filter_level(LevelFilter::Info)
             .init();
     }
+
+    i18n::init()?;
 
     match cli.command {
         SubCommand::UserInfo(userget_cmd) => {

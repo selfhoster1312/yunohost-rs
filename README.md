@@ -44,13 +44,13 @@ To run the integration test, give access for your machine's SSH key to a remote 
 Server kl.netlib.re is ready for tests
 __runner.sh hook.sh tools.sh user.sh
 DIFF                        PYTHON      RUST                         COMMAND
-OK                          OK (0.15s)  OK (0.00s)  yunohost hook list --json conf_regen
-OK                          OK (0.23s)  OK (0.01s)  yunohost settings get --json security
-OK                          OK (0.21s)  OK (0.01s)  yunohost settings get --json security.webadmin
-OK                          OK (0.17s)  OK (0.01s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
-DIFF - /tmp/tmp.isaVqotvui  OK (0.28s)  OK (0.00s)  yunohost tools regen-conf --list-pending --json
-OK                          OK (0.18s)  OK (0.00s)  yunohost user list --json
-DIFF - /tmp/tmp.v8qxmBoExK  OK (0.52s)  OK (0.00s)  yunohost user info --json test2
+OK                          OK (0.17s)  OK (0.00s)  yunohost hook list --json conf_regen
+OK                          OK (0.19s)  OK (0.01s)  yunohost settings get --json security
+OK                          OK (0.17s)  OK (0.02s)  yunohost settings get --json security.webadmin
+OK                          OK (0.18s)  OK (0.01s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
+DIFF - /tmp/tmp.zvfxF08Kji  OK (0.24s)  OK (0.00s)  yunohost tools regen-conf --list-pending --json
+OK                          OK (0.21s)  OK (0.03s)  yunohost user list --json
+OK                          OK (0.53s)  OK (0.03s)  yunohost user info --json test2
 ```
 
 Some notes about integration tests:

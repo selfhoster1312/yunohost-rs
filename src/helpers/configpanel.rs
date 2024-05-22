@@ -358,7 +358,7 @@ impl ConfigPanel {
                 self.config.get("i18n").map(|x| x.as_str()).flatten()
             {
                 let option_i18n_key = format!("{}_{}", config_i18n_key, option_id);
-                ask = Some(i18n::n(&option_i18n_key, None));
+                ask = Some(i18n::n(&option_i18n_key, None)?);
             }
 
             // We start to modify option

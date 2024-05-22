@@ -1,17 +1,14 @@
-// use camino::{Utf8PathBuf, Utf8Path};
 use camino::Utf8Path;
+use snafu::prelude::*;
 
 use std::env;
 use std::sync::{OnceLock, RwLock};
 
-// pub const DEFAULT_MOULINETTE_TRANSLATIONS_STR = include_str!("../locales/en.json");
-// pub const DEFAULT_YUNOHOST_TRANSLATIONS_STR = include_str!("../../locales/en.json");
+use crate::error::*;
+use crate::helpers::file::*;
 
-// static DEFAULT_MOULINETTE_TRANSLATIONS: OnceLock<HashMap<String, String>> = OnceLock::new();
-// static DEFAULT_YUNOHOST_TRANSLATIONS: OnceLock<HashMap<String, String>> = OnceLock::new();
 use std::collections::HashMap;
 
-#[allow(dead_code)]
 pub static DEFAULT_LOCALE_FALLBACK: &'static str = "en";
 
 // Wrap in OnceLock to make sure it's only initialized once. Wrap in RwLock to allow inner mutability.
@@ -24,28 +21,36 @@ pub struct Translator {
 }
 
 impl Translator {
-    pub fn new(locale_dir: &Utf8Path, default_locale: &str) -> Translator {
+    pub fn new(locale_dir: &Utf8Path, default_locale: &str) -> Result<Translator, Error> {
         let mut translations: HashMap<String, HashMap<String, String>> = HashMap::new();
-        for locale in locale_dir.read_dir_utf8().unwrap() {
-            let locale = locale.unwrap();
-            let file_name = locale.path().file_name().unwrap();
+        let read_dir = ReadDir::new(&locale_dir).context(LocalesReadFailedSnafu {
+            path: locale_dir.to_path_buf(),
+        })?;
+        for locale in &read_dir.paths() {
+            // UNWRAP NOTE: Safe unwrap because it's called with entries from read_dir, which cannot be ".."
+            let file_name = locale.file_name().unwrap();
 
             if !file_name.ends_with(".json") {
                 continue;
             }
 
             let locale_name = file_name.trim_end_matches(".json");
-            let locale_values: HashMap<String, String> =
-                serde_json::from_str(&std::fs::read_to_string(locale.path()).unwrap()).unwrap();
+
+            let locale_str = read(&locale).context(LocalesReadFailedSnafu {
+                path: locale.to_path_buf(),
+            })?;
+            let locale_values: HashMap<String, String> = serde_json::from_str(&locale_str)
+                .context(LocalesLoadFailedSnafu {
+                    path: locale.to_path_buf(),
+                })?;
 
             translations.insert(locale_name.to_string(), locale_values);
         }
 
-        Translator {
-            // locale_dir: locale_dir.to_path_buf(),
+        Ok(Translator {
             locale: default_locale.to_string(),
             translations,
-        }
+        })
     }
 
     pub fn set_locale(&mut self, locale: &str) {
@@ -59,16 +64,37 @@ impl Translator {
             .contains_key(key)
     }
 
-    pub fn translate(&self, key: &str, context: Option<HashMap<String, String>>) -> String {
-        if let Some(val) = self.translations.get(&self.locale).unwrap().get(key) {
-            if let Some(context) = context {
-                return strfmt::strfmt(val, &context).unwrap();
+    pub fn translate(
+        &self,
+        key: &str,
+        context: Option<HashMap<String, String>>,
+    ) -> Result<String, Error> {
+        // UNWRAP NOTE: If the language requested doesn't exist, this unwrap is the least of your worries
+        // TODO: maybe check the language exists when we change it?!
+        let raw_translation =
+            if let Some(val) = self.translations.get(&self.locale).unwrap().get(key) {
+                val.to_string()
+            } else if let Some(val) = self
+                .translations
+                .get(DEFAULT_LOCALE_FALLBACK)
+                .unwrap()
+                .get(key)
+            {
+                val.to_string()
             } else {
-                return val.to_string();
-            }
-        }
+                return Err(Error::LocalesMissingKey {
+                    key: key.to_string(),
+                });
+            };
 
-        panic!();
+        if let Some(context) = context {
+            strfmt::strfmt(&raw_translation, &context).context(LocalesFormattingSnafu {
+                key: raw_translation.to_string(),
+                args: context.clone(),
+            })
+        } else {
+            Ok(raw_translation)
+        }
     }
 }
 
@@ -79,14 +105,16 @@ pub struct Moulinette18n {
 }
 
 impl Moulinette18n {
-    pub fn new(locale: &str) -> Moulinette18n {
-        let yunohost_translator = Translator::new("/usr/share/yunohost/locales".into(), locale);
-        let moulinette_translator = Translator::new("/usr/share/moulinette/locales".into(), locale);
-        Moulinette18n {
+    pub fn new(locale: &str) -> Result<Moulinette18n, Error> {
+        let yunohost_translator = Translator::new("/usr/share/yunohost/locales".into(), locale)
+            .context(Moulinette18nYunohostSnafu)?;
+        let moulinette_translator = Translator::new("/usr/share/moulinette/locales".into(), locale)
+            .context(Moulinette18nMoulinetteSnafu)?;
+        Ok(Moulinette18n {
             yunohost_translator,
             moulinette_translator,
             current_locale: locale.to_string(),
-        }
+        })
     }
 
     pub fn set_locale(&mut self, locale: &str) {
@@ -106,30 +134,35 @@ pub fn get_system_locale() -> String {
     locale.chars().take(2).collect()
 }
 
-pub fn init() -> &'static RwLock<Moulinette18n> {
+pub fn init() -> Result<&'static RwLock<Moulinette18n>, Error> {
     let locale = get_system_locale();
 
-    STATIC_I18N.get_or_init(|| RwLock::new(Moulinette18n::new(&locale)))
+    if let Some(moulinette18n) = STATIC_I18N.get() {
+        Ok(moulinette18n)
+    } else {
+        let moulinette18n = Moulinette18n::new(&locale)?;
+        Ok(STATIC_I18N.get_or_init(|| RwLock::new(moulinette18n)))
+    }
 }
 
-pub fn g(key: &str, context: Option<HashMap<String, String>>) -> String {
-    STATIC_I18N
-        .get()
-        .unwrap()
-        .read()
-        .unwrap()
-        .moulinette_translator
-        .translate(key, context)
+pub fn g(key: &str, context: Option<HashMap<String, String>>) -> Result<String, Error> {
+    let i18n = if let Some(i18n) = STATIC_I18N.get() {
+        i18n.read().unwrap()
+    } else {
+        init()?.read().unwrap()
+    };
+
+    i18n.moulinette_translator.translate(key, context)
 }
 
-pub fn n(key: &str, context: Option<HashMap<String, String>>) -> String {
-    STATIC_I18N
-        .get()
-        .unwrap()
-        .read()
-        .unwrap()
-        .yunohost_translator
-        .translate(key, context)
+pub fn n(key: &str, context: Option<HashMap<String, String>>) -> Result<String, Error> {
+    let i18n = if let Some(i18n) = STATIC_I18N.get() {
+        i18n.read().unwrap()
+    } else {
+        init()?.read().unwrap()
+    };
+
+    i18n.yunohost_translator.translate(key, context)
 }
 
 pub fn get_locale() -> String {

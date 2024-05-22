@@ -98,8 +98,7 @@ fn main() -> Result<(), Error> {
             .init();
     }
 
-    // TODO: select locale
-    i18n::init();
+    i18n::init()?;
 
     match cli.command {
         SubCommand::SettingsGet(cmd) => {
