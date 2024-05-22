@@ -1,102 +1,13 @@
-use regex::Regex;
+use ldap3::{Scope, SearchEntry};
 use snafu::prelude::*;
+use tokio::runtime::Builder as RuntimeBuilder;
 
-use std::collections::BTreeMap;
 use std::str::FromStr;
-use std::sync::OnceLock;
-
-pub static REGEX_MAILUSAGE: OnceLock<Regex> = OnceLock::new();
 
 use crate::{
     error::*,
-    helpers::{file::read, ldap::*, process::cmd, service::*},
-    moulinette::i18n,
+    helpers::{file::read, ldap::*, process::*},
 };
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct YunohostDefaultListInfo {
-    pub username: String,
-    pub fullname: String,
-    pub mail: String,
-    // TODO
-    #[serde(rename = "mailbox-quota")]
-    pub mailbox_quota: String,
-}
-
-impl YunohostDefaultListInfo {
-    pub fn from_ldap_user(user: LdapUser) -> Self {
-        Self {
-            username: user.name,
-            fullname: user.attrs.get("cn").unwrap().first().unwrap().to_string(),
-            mail: user.attrs.get("mail").unwrap().first().unwrap().to_string(),
-            mailbox_quota: user
-                .attrs
-                .get("mailuserquota")
-                .unwrap()
-                .first()
-                .unwrap()
-                .to_string(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct YunohostDefaultList {
-    users: BTreeMap<String, YunohostDefaultListInfo>,
-}
-
-impl YunohostDefaultList {
-    pub fn from_ldap_users(ldap_users: Vec<LdapUser>) -> Self {
-        let mut users: BTreeMap<String, YunohostDefaultListInfo> = BTreeMap::new();
-
-        for user in ldap_users {
-            users.insert(
-                user.name.clone(),
-                YunohostDefaultListInfo::from_ldap_user(user),
-            );
-        }
-
-        Self { users }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct YunohostUsers {
-    pub users: Vec<String>,
-}
-
-impl YunohostUsers {
-    /// List existing POSIX usernames from the LDAP database.
-    ///
-    /// NOTE: This function creates a tokio async runtime. Do not use in async context.
-    pub fn usernames() -> Result<Vec<String>, Error> {
-        let mut users = vec![];
-        for user in LdapUser::one_off_list_users(vec![UserAttr::Username.to_string()])? {
-            users.push(user.name);
-        }
-
-        Ok(users)
-    }
-
-    pub fn default_list() -> Result<YunohostDefaultList, Error> {
-        let attrs: Vec<&'static str> = vec![
-            UserAttr::Username,
-            UserAttr::Fullname,
-            UserAttr::Mail,
-            UserAttr::MailAlias,
-            UserAttr::MailboxQuota,
-            UserAttr::Shell,
-        ]
-        .into_iter()
-        .map(|attr| attr.to_ldap_attr())
-        .collect();
-
-        let ldap_users = LdapUser::one_off_list_users(attrs)?;
-        let users = YunohostDefaultList::from_ldap_users(ldap_users);
-
-        Ok(users)
-    }
-}
 
 pub struct YunohostGroup;
 
@@ -159,26 +70,6 @@ impl YunohostGroup {
     }
 }
 
-// /// A user on the Yunohost system.
-// ///
-// /// More specifically, an entry with `username` *uid* in the `ou=users,dc=yunohost,dc=org` DN in the
-// /// Yunohost LDAP database.
-// ///
-// /// The user information is populated only with requested [`UserAttr`] attributes, so make sure they are requested
-// /// when loading the users from LDAP. Only the `username` user field (`uid` attribute) is mandatory.
-// #[derive(Clone, Debug, Serialize, Deserialize)]
-// pub struct YunohostUserInfo {
-//     #[serde(skip)]
-//     /// POSIX username, unique across all domains on the server
-//     username: String,
-//     #[serde(skip)]
-//     /// List of user attributes/fields fetched from the database
-//     fetched_attrs: Vec<UserAttr>,
-//     #[serde(flatten)]
-//     /// The attribute/field values returned from the database.
-//     attrs: BTreeMap<UserAttr, Vec<String>>,
-// }
-
 /// A specific user to query information about.
 ///
 /// Can work with queries by username or email.
@@ -212,85 +103,26 @@ impl UserQuery {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct MailStorageUse {
-    limit: String,
-    #[serde(rename = "use")]
-    mail_use: String,
-}
-
-impl MailStorageUse {
-    pub fn from_name_and_quota(user: &str, quota: &str) -> Result<Self, Error> {
-        let limit = if quota.starts_with("0") {
-            i18n::n("unlimit", None)?
-        } else {
-            quota.to_string()
-        };
-
-        let mut mail_use = String::from("?");
-
-        if !SystemCtl::is_active("dovecot") {
-            warn!(
-                "{}",
-                i18n::n("mailbox_used_space_dovecot_down", None).context(
-                    MailStorageLookupSnafu {
-                        user: user.to_string(),
-                    }
-                )?
-            );
-        } else if !YunohostPermissionInfo::permission("mail.main")
-            .context(MailStorageLookupSnafu {
-                user: user.to_string(),
-            })?
-            .corresponding_users
-            .contains(&user.to_string())
-        {
-            debug!(
-                "{}",
-                i18n::n(
-                    "mailbox_disabled",
-                    Some(hashmap!("user".to_string() => user.to_string()))
-                )
-                .context(MailStorageLookupSnafu {
-                    user: user.to_string(),
-                })?
-            );
-        } else {
-            let output = cmd("doveadm", vec!["-f", "flow", "quota", "get", "-u", user]).context(
-                MailStorageLookupSnafu {
-                    user: user.to_string(),
-                },
-            )?;
-            let output = String::from_utf8_lossy(&output.stdout);
-
-            // Use a global Regex for the life of the program, in case we're running in a loop, because generating
-            // the regex could become the bottleneck...
-            // UNWRAP NOTE: The regex cannot fail because it's well-known.
-            let re = REGEX_MAILUSAGE.get_or_init(|| Regex::new(r"Value=(\d+)").unwrap());
-            if let Some(captures) = re.captures(&output) {
-                // TODO: human format
-                mail_use = captures.get(1).unwrap().as_str().to_string();
-            }
-        }
-
-        Ok(Self { limit, mail_use })
-    }
-}
-
 /// A permission on the Yunohost system, with associated users.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct YunohostPermissionInfo {
+pub struct YunohostPermission {
     pub name: String,
     pub corresponding_users: Vec<String>,
 }
 
-impl YunohostPermissionInfo {
-    pub fn permission(name: &str) -> Result<YunohostPermissionInfo, Error> {
-        let permissions = LdapPermission::one_off_permissions()?;
+impl YunohostPermission {
+    pub fn name_from_dn(dn: &str) -> String {
+        dn.trim_start_matches("cn=")
+            .trim_end_matches(",ou=permission,dc=yunohost,dc=org")
+            .to_string()
+    }
+
+    pub fn get(name: &str) -> Result<Self, Error> {
+        let permissions = Self::list()?;
 
         for perm in permissions {
             if perm.name == name {
-                return Ok(YunohostPermissionInfo::try_from(perm)?);
+                return Ok(perm);
             }
         }
 
@@ -298,22 +130,67 @@ impl YunohostPermissionInfo {
             name: name.to_string(),
         })
     }
+
+    pub fn list() -> Result<Vec<Self>, Error> {
+        let rt = RuntimeBuilder::new_current_thread()
+            .enable_io()
+            .enable_time()
+            .build()
+            .unwrap();
+
+        let permissions_list = rt.block_on(async {
+            let ldap = YunohostLDAP::new(1000).await?;
+
+            let attrs: Vec<&'static str> = vec![
+                "cn",
+                "groupPermission",
+                "inheritPermission",
+                "URL",
+                "additionalUrls",
+                "authHeader",
+                "label",
+                "showTile",
+                "isProtected",
+            ];
+
+            let permissions = ldap
+                .list(
+                    "ou=permission,dc=yunohost,dc=org",
+                    Scope::OneLevel,
+                    "(objectclass=permissionYnh)",
+                    attrs,
+                )
+                .await?;
+
+            Ok(permissions)
+        })?;
+
+        let mut new_list: Vec<YunohostPermission> = vec![];
+        for entry in permissions_list {
+            new_list.push(Self::try_from(entry)?);
+        }
+
+        Ok(new_list)
+    }
 }
 
-impl TryFrom<LdapPermission> for YunohostPermissionInfo {
+impl TryFrom<SearchEntry> for YunohostPermission {
     type Error = Error;
 
-    fn try_from(perm: LdapPermission) -> Result<YunohostPermissionInfo, Error> {
-        Ok(YunohostPermissionInfo {
-            name: perm.name,
+    fn try_from(perm: SearchEntry) -> Result<Self, Self::Error> {
+        Ok(Self {
+            name: Self::name_from_dn(&perm.dn),
             // inheritPermission was requested so this should be safe unwrap
             corresponding_users: perm
                 .attrs
                 .get("inheritPermission")
-                .unwrap()
-                .into_iter()
-                .map(|dn| LdapUser::uid_from_dn(&dn))
-                .collect(),
+                .map(|found_list| {
+                    found_list
+                        .into_iter()
+                        .map(|dn| YunohostUser::name_from_dn(&dn))
+                        .collect()
+                })
+                .unwrap_or(vec![]),
         })
     }
 }
@@ -326,7 +203,7 @@ impl TryFrom<LdapPermission> for YunohostPermissionInfo {
 /// The user information is populated only with requested [`UserAttr`] attributes, so make sure they are requested
 /// when loading the users from LDAP. Only the `username` user field (`uid` attribute) is mandatory.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct YunohostUserInfo {
+pub struct YunohostUser {
     pub username: String,
     pub fullname: String,
     pub mail: String,
@@ -337,36 +214,113 @@ pub struct YunohostUserInfo {
     #[serde(rename = "mail-forward")]
     pub mail_forward: Vec<String>,
     #[serde(rename = "mailbox-quota")]
-    pub mailbox_quota: MailStorageUse,
+    pub mailbox_quota: String,
 }
 
-impl YunohostUserInfo {
-    pub fn info_for<T: Into<UserQuery>>(query: T) -> Result<YunohostUserInfo, Error> {
+impl YunohostUser {
+    pub fn get<T: Into<UserQuery>>(query: T) -> Result<Self, Error> {
         // Support name and mail
         let query: UserQuery = query.into();
-        let user = LdapUser::one_off_get_user(&query)?;
 
-        Ok(YunohostUserInfo::try_from(user)?)
+        let rt = RuntimeBuilder::new_current_thread()
+            .enable_io()
+            .enable_time()
+            .build()
+            .unwrap();
+
+        let user = rt.block_on(async {
+            let ldap = YunohostLDAP::new(1000).await?;
+
+            let attrs: Vec<&'static str> = vec![
+                UserAttr::Fullname,
+                UserAttr::Mail,
+                UserAttr::Username,
+                UserAttr::MailForward,
+                UserAttr::MailboxQuota,
+                UserAttr::Shell,
+            ]
+            .into_iter()
+            .map(|attr| attr.to_ldap_attr())
+            .collect();
+
+            let user = ldap
+                .search(
+                    &format!("{},ou=users,dc=yunohost,dc=org", query.to_ldap_filter()),
+                    Scope::Base,
+                    "(objectclass=*)",
+                    attrs,
+                    Error::LdapNoSuchUser {
+                        query: query.clone(),
+                    },
+                )
+                .await?;
+
+            Ok(user)
+        })?;
+
+        Ok(YunohostUser::try_from(user)?)
+    }
+
+    pub fn list(attrs: Option<Vec<UserAttr>>) -> Result<Vec<Self>, Error> {
+        // Default attributes, unless some attrs were requested
+        let attrs: Vec<String> = attrs
+            .unwrap_or(vec![
+                UserAttr::Fullname,
+                UserAttr::Mail,
+                UserAttr::Username,
+                UserAttr::MailForward,
+                UserAttr::MailboxQuota,
+                UserAttr::Shell,
+            ])
+            .into_iter()
+            .map(|attr| attr.to_ldap_attr().to_string())
+            .collect();
+
+        let rt = RuntimeBuilder::new_current_thread()
+            .enable_io()
+            .enable_time()
+            .build()
+            .unwrap();
+
+        let user_list = rt.block_on(async {
+            let ldap = YunohostLDAP::new(1000).await?;
+
+            let user_list = ldap
+                .list(
+                    "ou=users,dc=yunohost,dc=org",
+                    Scope::OneLevel,
+                    "(&(objectclass=person)(!(uid=root))(!(uid=nobody)))",
+                    attrs,
+                )
+                .await?;
+
+            Ok(user_list)
+        })?;
+
+        let mut new_list: Vec<YunohostUser> = vec![];
+        for entry in user_list {
+            new_list.push(entry.try_into()?);
+        }
+
+        Ok(new_list)
+    }
+
+    /// Shorthand method for querying the list of usernames only
+    pub fn usernames() -> Result<Vec<String>, Error> {
+        Ok(Self::list(None)?.into_iter().map(|x| x.username).collect())
+    }
+
+    pub fn name_from_dn(dn: &str) -> String {
+        dn.trim_start_matches("uid=")
+            .trim_end_matches(",ou=users,dc=yunohost,dc=org")
+            .to_string()
     }
 }
 
-impl TryFrom<LdapUser> for YunohostUserInfo {
+impl TryFrom<SearchEntry> for YunohostUser {
     type Error = Error;
 
-    fn try_from(user: LdapUser) -> Result<YunohostUserInfo, Error> {
-        debug!("{:#?}", &user);
-
-        // let mailbox_quota = user.attrs.get("mailuserquota").map(|_x| "TODO".to_string());
-        let mailbox_quota = MailStorageUse::from_name_and_quota(
-            &user.name,
-            user.attrs
-                .get("mailuserquota")
-                .unwrap()
-                .iter()
-                .nth(0)
-                .unwrap(),
-        )?;
-
+    fn try_from(user: SearchEntry) -> Result<Self, Self::Error> {
         let mut mail_aliases: Vec<String> = vec![];
         for addr in user
             .attrs
@@ -389,8 +343,8 @@ impl TryFrom<LdapUser> for YunohostUserInfo {
             mail_forward.push(addr.to_string());
         }
 
-        Ok(YunohostUserInfo {
-            username: user.name,
+        Ok(Self {
+            username: Self::name_from_dn(&user.dn),
             fullname: user
                 .attrs
                 .get(UserAttr::Fullname.to_ldap_attr())
@@ -417,7 +371,14 @@ impl TryFrom<LdapUser> for YunohostUserInfo {
                 .to_string(),
             mail_aliases,
             mail_forward,
-            mailbox_quota,
+            mailbox_quota: user
+                .attrs
+                .get(UserAttr::MailboxQuota.to_ldap_attr())
+                .unwrap()
+                .into_iter()
+                .next()
+                .unwrap()
+                .to_string(),
         })
     }
 }

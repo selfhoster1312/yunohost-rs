@@ -1,10 +1,14 @@
 use clap::{Parser, Subcommand};
 use log::LevelFilter;
+use serde::Serialize;
+
+use std::collections::BTreeMap;
 
 use yunohost::{
     error::*,
+    helpers::mail::*,
     helpers::output::*,
-    helpers::users::{UserAttr, UserQuery, YunohostUserInfo, YunohostUsers},
+    helpers::users::{UserAttr, UserQuery, YunohostUser},
     moulinette::i18n,
 };
 
@@ -28,7 +32,13 @@ impl UserInfoCommand {
         //     UserAttr::Shell,
         // );
 
-        let user = YunohostUserInfo::info_for(self.query.clone())?;
+        // Get the user from the LDAP DB
+        let user = YunohostUser::get(self.query.clone())?;
+
+        // Transform for extra fields of interest
+        let user = DefaultSingle::try_from(user)?;
+
+        // Format the output
         let output = json_or_yaml_output(&user, self.json)?;
         println!("{}", output);
 
@@ -47,8 +57,13 @@ pub struct UserListCommand {
 
 impl UserListCommand {
     fn run(&self) -> Result<(), Error> {
-        // TODO: custom fields
-        let users = YunohostUsers::default_list()?;
+        // Get the userlist from the LDAP DB
+        let users = YunohostUser::list(None)?;
+
+        // Extract the fields that interest us
+        let users = DefaultList::from(users);
+
+        // Format the output
         let output = json_or_yaml_output(&users, self.json)?;
         println!("{}", output);
 
@@ -91,13 +106,84 @@ fn main() -> Result<(), Error> {
     i18n::init()?;
 
     match cli.command {
-        SubCommand::UserInfo(userget_cmd) => {
-            userget_cmd.run()?;
+        SubCommand::UserInfo(cmd) => {
+            cmd.run()?;
         }
-        SubCommand::UserList(userlist_cmd) => {
-            userlist_cmd.run()?;
+        SubCommand::UserList(cmd) => {
+            cmd.run()?;
         }
     }
 
     Ok(())
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct DefaultListInfo {
+    pub username: String,
+    pub fullname: String,
+    pub mail: String,
+    #[serde(rename = "mailbox-quota")]
+    pub mailbox_quota: String,
+}
+
+impl From<YunohostUser> for DefaultListInfo {
+    fn from(user: YunohostUser) -> Self {
+        Self {
+            username: user.username,
+            fullname: user.fullname,
+            mail: user.mail,
+            mailbox_quota: user.mailbox_quota,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct DefaultList {
+    users: BTreeMap<String, DefaultListInfo>,
+}
+
+impl From<Vec<YunohostUser>> for DefaultList {
+    fn from(users: Vec<YunohostUser>) -> Self {
+        let mut default_list: BTreeMap<String, DefaultListInfo> = BTreeMap::new();
+        for user in users {
+            default_list.insert(user.username.clone(), user.into());
+        }
+
+        Self {
+            users: default_list,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct DefaultSingle {
+    pub username: String,
+    pub fullname: String,
+    pub mail: String,
+    #[serde(rename = "loginShell")]
+    pub login_shell: String,
+    #[serde(rename = "mail-aliases")]
+    pub mail_aliases: Vec<String>,
+    #[serde(rename = "mail-forward")]
+    pub mail_forward: Vec<String>,
+    #[serde(rename = "mailbox-quota")]
+    pub mailbox_quota: MailStorageUse,
+}
+
+impl TryFrom<YunohostUser> for DefaultSingle {
+    type Error = Error;
+
+    fn try_from(user: YunohostUser) -> Result<Self, Error> {
+        let mailbox_quota =
+            MailStorageUse::from_name_and_quota(&user.username, &user.mailbox_quota)?;
+        Ok(Self {
+            username: user.username,
+            fullname: user.fullname,
+            mail: user.mail,
+            login_shell: user.login_shell,
+            mail_aliases: user.mail_aliases,
+            mail_forward: user.mail_forward,
+            mailbox_quota,
+        })
+    }
 }

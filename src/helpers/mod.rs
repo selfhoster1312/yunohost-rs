@@ -7,6 +7,7 @@ pub mod hook;
 pub mod i18n;
 pub mod ldap;
 pub mod legacy;
+pub mod mail;
 pub mod output;
 pub mod process;
 pub mod regenconf;

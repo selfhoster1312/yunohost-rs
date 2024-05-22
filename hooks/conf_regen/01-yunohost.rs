@@ -372,7 +372,7 @@ fn do_post_regen(regen_conf_files: Option<String>) -> Result<(), Error> {
             .context(ConfRegenYunohostPostSetfaclSnafu);
     }
 
-    for user in YunohostUsers::usernames().context(ConfRegenYunohostPostUsersSnafu)? {
+    for user in YunohostUser::usernames().context(ConfRegenYunohostPostUsersSnafu)? {
         let home = format!("/home/{user}");
         if is_dir(&home) {
             let _ = cmd("setfacl", vec!["-m", "g:all_users:---", &home]);
