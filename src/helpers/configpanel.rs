@@ -318,19 +318,7 @@ impl ConfigPanel {
                     .to_option_type();
 
                     let normalized = option_type.normalize(value, &option_iter);
-                    let val: Result<toml::Value, serde_json::Error> =
-                        serde_json::from_str(&normalized);
-                    // match serde_json::Value::from_str(&normalized) {
-                    match val {
-                        Ok(normalized_value) => return Ok(normalized_value),
-                        Err(e) => {
-                            eprintln!("Failed to value normalized str: {:?}", normalized);
-                            eprintln!("{e}");
-                            panic!();
-                        }
-                    }
-                    // let normalized_value = Value::from_str(&normalized).unwrap();
-                    // return Ok(normalized_value);
+                    return Ok(normalized);
                 }
             }
 
@@ -412,8 +400,9 @@ impl ConfigPanel {
                         option.get("current_value").unwrap(),
                         &option,
                     ) {
-                        let humanized_value = Value::from_str(&humanized).unwrap();
-                        result_key.insert("value".to_string(), humanized_value);
+                        // let humanized_value = Value::from_str(&humanized).unwrap();
+                        // result_key.insert("value".to_string(), humanized_value);
+                        result_key.insert("value".to_string(), Value::String(humanized));
                     } else {
                         // OptionType has no specific opinion about humanization
                         result_key.insert("value".to_string(), current_value.clone());
@@ -423,7 +412,7 @@ impl ConfigPanel {
                     if question_class.hide_user_input_in_prompt() {
                         result_key.insert(
                             "value".to_string(),
-                            Value::String("*************".to_string()),
+                            Value::String("**************".to_string()),
                         );
                     }
                 }

@@ -44,13 +44,13 @@ To run the integration test, give access for your machine's SSH key to a remote 
 Server kl.netlib.re is ready for tests
 __runner.sh hook.sh tools.sh user.sh
 DIFF                        PYTHON      RUST                         COMMAND
-DIFF - /tmp/tmp.NJ33lvt6jQ  OK (0.32s)  OK (0.00s)  yunohost hook list --json conf_regen
-DIFF - /tmp/tmp.dfIKQkmask  OK (0.40s)  OK (0.00s)  yunohost settings get --json security
-DIFF - /tmp/tmp.R2q2z26rc2  OK (0.36s)  OK (0.00s)  yunohost settings get --json security.webadmin
-OK                          OK (0.28s)  OK (0.00s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
-DIFF - /tmp/tmp.qwZLB3DCjg  OK (0.51s)  OK (0.01s)  yunohost tools regen-conf --list-pending --json
-OK                          OK (0.31s)  OK (0.01s)  yunohost user list --json
-DIFF - /tmp/tmp.eDk6n9ULyR  OK (0.82s)  OK (0.00s)  yunohost user info --json test2
+DIFF - /tmp/tmp.FxkCjfrB2E  OK (0.15s)  OK (0.00s)  yunohost hook list --json conf_regen
+OK                          OK (0.18s)  OK (0.01s)  yunohost settings get --json security
+OK                          OK (0.17s)  OK (0.00s)  yunohost settings get --json security.webadmin
+OK                          OK (0.17s)  OK (0.01s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
+DIFF - /tmp/tmp.JTXJRMt91A  OK (0.26s)  OK (0.00s)  yunohost tools regen-conf --list-pending --json
+OK                          OK (0.18s)  OK (0.00s)  yunohost user list --json
+DIFF - /tmp/tmp.5P2Psn5W6Y  OK (0.57s)  OK (0.00s)  yunohost user info --json test2
 ```
 
 Some notes about integration tests:

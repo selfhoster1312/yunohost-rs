@@ -74,11 +74,13 @@ impl OptionType {
 
 // TODO: what does this do? normalize... and ?
 // What is the difference between normalize and humanize?
+
 pub trait OptionTypeInterface {
-    // TODO: Apparently normalization can fail and return None, see
-    // BooleanOption in python code
-    fn normalize(&self, val: &Value, option: &Table) -> String;
+    /// Whether the actual value should be hidden in output (eg. password/secret)
     fn hide_user_input_in_prompt(&self) -> bool;
+    /// Normalization takes any toml::Value and turns it into a properly-typed Value. Fallible process
+    fn normalize(&self, val: &Value, option: &Table) -> Value;
+    /// Humanization takes the normalized value and formats it for output.
     fn humanize(&self, val: &Value, option: &Table) -> Option<String>;
 }
 
@@ -88,8 +90,8 @@ impl OptionTypeInterface for DisplayTextOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -103,8 +105,8 @@ impl OptionTypeInterface for MarkdownOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -118,8 +120,8 @@ impl OptionTypeInterface for AlertOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -133,8 +135,8 @@ impl OptionTypeInterface for ButtonOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -148,8 +150,8 @@ impl OptionTypeInterface for TextOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -163,8 +165,8 @@ impl OptionTypeInterface for PasswordOption {
         true
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -178,8 +180,8 @@ impl OptionTypeInterface for ColorOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -193,12 +195,15 @@ impl OptionTypeInterface for NumberOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
-    fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
-        None
+    fn humanize(&self, val: &Value, _option: &Table) -> Option<String> {
+        if let Some(n) = val.as_integer() {
+            return Some(n.to_string());
+        }
+        panic!();
     }
 }
 
@@ -208,17 +213,17 @@ impl OptionTypeInterface for BooleanOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        let str_bool = if let Some(b) = val.as_bool() {
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        let b = if let Some(b) = val.as_bool() {
             if b {
-                "1"
+                1
             } else {
-                "0"
+                0
             }
         } else if let Some(s) = val.as_str() {
             match s {
-                "1" | "yes" | "y" | "true" | "t" | "on" => "1",
-                "0" | "no" | "n" | "false" | "f" | "off" => "0",
+                "1" | "yes" | "y" | "true" | "t" | "on" => 1,
+                "0" | "no" | "n" | "false" | "f" | "off" => 0,
                 _ => {
                     panic!("THIS IS SUPER DUPER WRONG");
                 }
@@ -226,11 +231,15 @@ impl OptionTypeInterface for BooleanOption {
         } else {
             panic!("THIS IS WRONG!");
         };
-        str_bool.to_string()
+        Value::Integer(b)
     }
 
-    fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
-        None
+    fn humanize(&self, val: &Value, option: &Table) -> Option<String> {
+        if self.normalize(val, option).as_integer().unwrap() == 1 {
+            Some("yes".to_string())
+        } else {
+            Some("no".to_string())
+        }
     }
 }
 
@@ -240,8 +249,8 @@ impl OptionTypeInterface for DateOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -255,8 +264,8 @@ impl OptionTypeInterface for TimeOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -270,8 +279,8 @@ impl OptionTypeInterface for EmailOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -285,8 +294,8 @@ impl OptionTypeInterface for PathOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -300,8 +309,8 @@ impl OptionTypeInterface for UrlOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -315,8 +324,8 @@ impl OptionTypeInterface for FileOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -330,8 +339,8 @@ impl OptionTypeInterface for SelectOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -345,8 +354,8 @@ impl OptionTypeInterface for TagsOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -360,8 +369,8 @@ impl OptionTypeInterface for DomainOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        if let Some(s) = val.as_str() {
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        let s = if let Some(s) = val.as_str() {
             s.trim_start_matches("https://")
                 .trim_start_matches("http://")
                 .trim_end_matches('/')
@@ -371,7 +380,9 @@ impl OptionTypeInterface for DomainOption {
                 "Called DomainOption::normalize with a non-string;y _value: {:?}",
                 val
             )
-        }
+        };
+
+        Value::String(s)
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -385,8 +396,8 @@ impl OptionTypeInterface for AppOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -400,8 +411,8 @@ impl OptionTypeInterface for UserOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
@@ -415,8 +426,8 @@ impl OptionTypeInterface for GroupOption {
         false
     }
 
-    fn normalize(&self, val: &Value, _option: &Table) -> String {
-        val.to_string()
+    fn normalize(&self, val: &Value, _option: &Table) -> Value {
+        val.clone()
     }
 
     fn humanize(&self, _val: &Value, _option: &Table) -> Option<String> {
