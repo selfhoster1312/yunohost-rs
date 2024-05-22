@@ -53,6 +53,11 @@ impl Hook {
 }
 
 #[derive(Clone, Debug, Serialize)]
+pub struct HookListNames {
+    pub hooks: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
 pub struct HookList {
     pub hooks: Vec<Hook>,
 }
@@ -66,8 +71,10 @@ impl HookList {
         HookList { hooks }
     }
 
-    pub fn names(&self) -> Vec<String> {
-        self.hooks.iter().map(|x| x.name.to_string()).collect()
+    pub fn names(&self) -> HookListNames {
+        HookListNames {
+            hooks: self.hooks.iter().map(|x| x.name.to_string()).collect(),
+        }
     }
 }
 
