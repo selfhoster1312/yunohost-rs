@@ -43,6 +43,8 @@ serde_yaml_ng = "0.9"
 serde_with = "3.8"
 # Error handling and Result::context method
 snafu = "0.8"
+# moulinette: Runtime formatting of strings for i18n
+strfmt = "0.2"
 # str-valued enums
 strum = { version = "0.26", features = ["derive"] }
 # Async runtime for network queries (for now only ldap3)

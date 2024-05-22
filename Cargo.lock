@@ -996,6 +996,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "strfmt"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a8348af2d9fc3258c8733b8d9d8db2e56f54b2363a4b5b81585c7875ed65e65"
+
+[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1484,6 +1490,7 @@ dependencies = [
  "serde_with",
  "serde_yaml_ng",
  "snafu",
+ "strfmt",
  "strum",
  "tokio",
  "toml",

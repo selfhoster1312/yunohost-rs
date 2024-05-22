@@ -6,7 +6,8 @@ use toml::{Table, Value};
 use std::str::FromStr;
 
 use crate::error::*;
-use crate::helpers::{file::*, form::*, string::*};
+use crate::helpers::{file::*, form::*, i18n::*, string::*};
+use crate::moulinette::*;
 
 // [x] _get_config_panel
 // [x] _build_internal_config_panel
@@ -361,8 +362,16 @@ impl ConfigPanel {
                 continue;
             }
 
-            // TODO: translation moulinette.Moulinette18n
-            let ask = None;
+            let mut ask = None;
+            if let Some(option_ask_table) = option.get("ask").map(|x| x.as_table()).flatten() {
+                // NOTE: Wtf is this?
+                ask = Some(_value_for_locale(option_ask_table));
+            } else if let Some(config_i18n_key) =
+                self.config.get("i18n").map(|x| x.as_str()).flatten()
+            {
+                let option_i18n_key = format!("{}_{}", config_i18n_key, option_id);
+                ask = Some(i18n::n(&option_i18n_key, None));
+            }
 
             // We start to modify option
             let option = self._get_config_option_mut(&panel, &section, &option);
@@ -378,7 +387,7 @@ impl ConfigPanel {
 
             if mode == GetMode::Full {
                 if let Some(ask) = ask {
-                    option.insert("ask".to_string(), ask);
+                    option.insert("ask".to_string(), ask.into());
                 }
 
                 // TODO: wtf choices/default/pattern??? dynamic types and all
@@ -387,7 +396,7 @@ impl ConfigPanel {
                 let mut result_key = Table::new();
                 if let Some(ask) = ask {
                     // TODO: ask stuff
-                    result_key.insert("ask".to_string(), ask);
+                    result_key.insert("ask".to_string(), ask.into());
                 }
 
                 result.insert(key.to_string(), result_key.into());

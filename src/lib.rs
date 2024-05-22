@@ -7,3 +7,4 @@ extern crate snafu;
 
 pub mod error;
 pub mod helpers;
+pub mod moulinette;

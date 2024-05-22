@@ -4,6 +4,7 @@ pub mod credentials;
 pub mod file;
 pub mod form;
 pub mod hook;
+pub mod i18n;
 pub mod ldap;
 pub mod legacy;
 pub mod output;

@@ -4,6 +4,7 @@ use log::LevelFilter;
 use yunohost::{
     error::*,
     helpers::{configpanel::*, legacy::*, output::*, settings::*},
+    moulinette::i18n,
 };
 
 #[derive(Clone, Debug, Parser)]
@@ -96,6 +97,9 @@ fn main() -> Result<(), Error> {
             .filter_level(LevelFilter::Info)
             .init();
     }
+
+    // TODO: select locale
+    i18n::init();
 
     match cli.command {
         SubCommand::SettingsGet(cmd) => {
