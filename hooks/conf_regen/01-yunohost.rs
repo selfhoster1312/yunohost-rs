@@ -5,7 +5,7 @@ use snafu::prelude::*;
 
 use yunohost::{
     error::*,
-    helpers::{apt::*, file::*, process::*, service::*, users::*},
+    helpers::{apt::*, file::*, process::*, service::*, user::*, group::*},
 };
 
 use std::fs::{copy, create_dir_all as mkdir, read_dir, write};

@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 
 use crate::{
     error::*,
-    helpers::{process::*, service::*, users::*},
+    helpers::{permission::*, process::*, service::*},
     moulinette::*,
 };
 

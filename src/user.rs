@@ -8,7 +8,7 @@ use yunohost::{
     error::*,
     helpers::mail::*,
     helpers::output::*,
-    helpers::users::{UserAttr, UserQuery, YunohostUser},
+    helpers::user::{UserAttr, UserQuery, YunohostUser},
     moulinette::i18n,
 };
 

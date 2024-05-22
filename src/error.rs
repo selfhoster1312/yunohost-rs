@@ -238,7 +238,7 @@ pub enum Error {
     #[snafu(display("No such user matching query: {:?}", query))]
     LdapNoSuchUser {
         // username: crate::helpers::credentials::Username,
-        query: crate::helpers::users::UserQuery,
+        query: crate::helpers::user::UserQuery,
     },
 
     #[snafu(display("Failed to lookup permission {name}"))]
