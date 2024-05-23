@@ -9,6 +9,8 @@ use crate::error::*;
 use crate::helpers::{file::*, form::*, i18n::*, string::*};
 use crate::moulinette::*;
 
+pub mod container;
+
 // [x] _get_config_panel
 // [x] _build_internal_config_panel
 // [x] _get_raw_settings
