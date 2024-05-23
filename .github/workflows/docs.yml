@@ -1,0 +1,44 @@
+# https://github.com/neuppl/rsdd/blob/main/.github/workflows/docs.yml
+# https://github.com/max-ishere/grub-theme/blob/main/.github/workflows/cargo-doc-pages.yml
+name: "Deploy docs to Github Pages"
+
+on:
+  push:
+    branches:
+      - main
+    # Allows you to run this workflow manually from the Actions tab
+    workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+      - name: Run cargo doc
+        #run: RUSTDOCFLAGS="-D warnings" cargo doc --lib --all-features
+        run: cargo doc --lib --all-features
+      - name: Add index
+        run: echo "<meta http-equiv=\"refresh\" content=\"0; url=yunohost\">" > target/doc/index.html
+      - name: Create yunohost-rs/doc folder
+        run: mkdir -p yunohost-rs/doc
+      - name: Move to yunohost-rs/doc folder
+        run: mv target/doc yunohost-rs/doc
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: 'yunohost-rs/doc'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+        with:
+          folder: yunohost-rs/doc
