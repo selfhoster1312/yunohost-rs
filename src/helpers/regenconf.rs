@@ -77,6 +77,41 @@ impl<'de> Deserialize<'de> for RelativeConfFile {
     }
 }
 
+/// An absolute path to the pending conf in PENDING_CONF_DIR.
+///
+/// This is the default output of `yunohost tools regen-conf --list-pending`,
+/// use the [`PendingConfFile::to_pending_diff`] to generate the `--with-diff` output.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PendingConfFile(Utf8PathBuf);
+
+impl PendingConfFile {
+    pub fn new(path: Utf8PathBuf) -> PendingConfFile {
+        PendingConfFile(path)
+    }
+
+    // We need to remove PENDING_CONF_DIR and the category
+    // /var/cache/yunohost/regenconf/pending/nginx/FOO
+    // => FOO
+    pub fn to_system_path(&self) -> RelativeConfFile {
+        let category_conffile = self.0.strip_prefix(PENDING_CONF_DIR).unwrap();
+        let conffile: Utf8PathBuf = category_conffile.components().skip(1).collect();
+        RelativeConfFile::from_relative(conffile)
+    }
+
+    pub fn into_pending_diff(self) -> Result<PendingConfDiff, Error> {
+        Ok(PendingConfDiff {
+            diff: _get_files_diff(&self.to_system_path().path, &self.0),
+            pending_conf: self,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PendingConfDiff {
+    diff: String,
+    pending_conf: PendingConfFile,
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RegenCategoryConfFiles {
     pub conffiles: BTreeMap<RelativeConfFile, String>,
@@ -84,9 +119,9 @@ pub struct RegenCategoryConfFiles {
 
 pub fn _get_pending_conf(
     categories: &[String],
-) -> Result<BTreeMap<String, BTreeMap<RelativeConfFile, Utf8PathBuf>>, Error> {
+) -> Result<BTreeMap<String, BTreeMap<RelativeConfFile, PendingConfFile>>, Error> {
     let pending_dir = Utf8PathBuf::from(PENDING_CONF_DIR);
-    let mut res: BTreeMap<String, BTreeMap<RelativeConfFile, Utf8PathBuf>> = BTreeMap::new();
+    let mut res: BTreeMap<String, BTreeMap<RelativeConfFile, PendingConfFile>> = BTreeMap::new();
 
     // No pending directory, nothing to see here.
     if !is_dir(&pending_dir) {
@@ -109,7 +144,7 @@ pub fn _get_pending_conf(
             continue;
         }
 
-        let mut category_conf: BTreeMap<RelativeConfFile, Utf8PathBuf> = BTreeMap::new();
+        let mut category_conf: BTreeMap<RelativeConfFile, PendingConfFile> = BTreeMap::new();
 
         // Only take files not folders
         for path in
@@ -127,7 +162,7 @@ pub fn _get_pending_conf(
             // Remove the category_pending_path prefix from the entry
             // let index = path.strip_prefix(&category_pending_path).unwrap();
             let index = RelativeConfFile::from_basedir_prefix(&path, &category_pending_path);
-            category_conf.insert(index, path.to_path_buf());
+            category_conf.insert(index, PendingConfFile::new(path.to_path_buf()));
         }
 
         if category_conf.is_empty() {
