@@ -165,6 +165,16 @@ pub fn n(key: &str, context: Option<HashMap<String, String>>) -> Result<String, 
     i18n.yunohost_translator.translate(key, context)
 }
 
+pub fn n_exists(key: &str) -> Result<bool, Error> {
+    let i18n = if let Some(i18n) = STATIC_I18N.get() {
+        i18n.read().unwrap()
+    } else {
+        init()?.read().unwrap()
+    };
+
+    Ok(i18n.yunohost_translator.key_exists(key))
+}
+
 pub fn get_locale() -> String {
     STATIC_I18N.get().unwrap().read().unwrap().get_locale()
 }
