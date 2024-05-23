@@ -9,8 +9,8 @@ use std::fs::remove_dir_all;
 use crate::{error::*, helpers::file::*};
 
 pub const BASE_CONF_DIR: &'static str = "/var/cache/yunohost/regenconf";
-pub const BACKUP_CONF_DIR: &'static str = "/var/cache/yunohost/backup";
-pub const PENDING_CONF_DIR: &'static str = "/var/cache/yunohost/pending";
+pub const BACKUP_CONF_DIR: &'static str = "/var/cache/yunohost/regenconf/backup";
+pub const PENDING_CONF_DIR: &'static str = "/var/cache/yunohost/regenconf/pending";
 pub const REGEN_CONF_FILE: &'static str = "/etc/yunohost/regenconf.yml";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -90,6 +90,7 @@ pub fn _get_pending_conf(
 
     // No pending directory, nothing to see here.
     if !is_dir(&pending_dir) {
+        debug!("No such regen-conf pending directory: {pending_dir}");
         return Ok(res);
     }
 
@@ -104,6 +105,7 @@ pub fn _get_pending_conf(
     for name in categories {
         let category_pending_path = pending_dir.join(&name);
         if !is_dir(&category_pending_path) {
+            debug!("regen-conf: Skip non-dir {category_pending_path}");
             continue;
         }
 
