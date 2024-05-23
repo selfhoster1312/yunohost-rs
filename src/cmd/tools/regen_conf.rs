@@ -1,28 +1,8 @@
-use clap::{Parser, Subcommand};
+use clap::Parser;
 
 use std::process::exit;
 
 use crate::{error::*, helpers::file::*, helpers::output, helpers::regenconf::*};
-
-#[derive(Clone, Debug, Parser)]
-pub struct ToolsCommand {
-    #[command(subcommand)]
-    cmd: ToolsSubCommand,
-}
-
-impl ToolsCommand {
-    pub fn run(&self) -> Result<(), Error> {
-        match &self.cmd {
-            ToolsSubCommand::RegenConf(cmd) => cmd.run(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Subcommand)]
-pub enum ToolsSubCommand {
-    #[command(name = "regen-conf")]
-    RegenConf(RegenConfCommand),
-}
 
 #[derive(Clone, Debug, Parser)]
 pub struct RegenConfCommand {
