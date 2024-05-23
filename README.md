@@ -89,7 +89,7 @@ print(settings.get("", "classic"))
 - [x] rewrite `yunohost user list` in Rust (TODO: `--fields` argument)
 - [ ] rewrite the regen-conf engine in Rust
 - [ ] rewrite all regen-conf engine/hooks in Rust
-- [~] rewrite `yunohost settings get` in Rust (initial very incomplete implementation)
+- [ ] rewrite `yunohost settings get` in Rust (initial very incomplete implementation)
 - [x] output comparison in integration tests
 - [x] timing information in integration tests
 - [ ] Github Pages crate documentation
