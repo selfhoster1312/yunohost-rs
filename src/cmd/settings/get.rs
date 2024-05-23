@@ -1,32 +1,9 @@
-use clap::{Parser, Subcommand};
+use clap::Parser;
 
 use crate::{
     error::*,
     helpers::{configpanel::*, legacy::*, output, settings::*},
 };
-
-#[derive(Clone, Debug, Parser)]
-pub struct SettingsCommand {
-    #[command(subcommand)]
-    cmd: SettingsSubCommand,
-}
-
-impl SettingsCommand {
-    pub fn run(&self) -> Result<(), Error> {
-        match &self.cmd {
-            SettingsSubCommand::SettingsGet(cmd) => cmd.run(),
-            SettingsSubCommand::SettingsList(cmd) => cmd.run(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Subcommand)]
-pub enum SettingsSubCommand {
-    #[command(name = "get")]
-    SettingsGet(SettingsGetCommand),
-    #[command(name = "list")]
-    SettingsList(SettingsListCommand),
-}
 
 #[derive(Clone, Debug, Parser)]
 pub struct SettingsGetCommand {
@@ -44,7 +21,7 @@ pub struct SettingsGetCommand {
 }
 
 impl SettingsGetCommand {
-    fn run(&self) -> Result<(), Error> {
+    pub fn run(&self) -> Result<(), Error> {
         if self.json {
             output::enable_json();
         }
@@ -68,28 +45,6 @@ impl SettingsGetCommand {
 
         // println!("{}", json_or_yaml_output(&val, self.json)?);
         output::fallible(val);
-
-        Ok(())
-    }
-}
-
-#[derive(Clone, Debug, Parser)]
-pub struct SettingsListCommand {
-    #[arg(short, long, name = "full")]
-    _full: bool,
-
-    #[arg(long)]
-    json: bool,
-
-    #[arg()]
-    setting: String,
-}
-
-impl SettingsListCommand {
-    fn run(&self) -> Result<(), Error> {
-        if self.json {
-            output::enable_json();
-        }
 
         Ok(())
     }
