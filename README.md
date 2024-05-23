@@ -22,17 +22,20 @@ I also believe the Yunohost project would benefit from writing many things in Ru
 You will find:
 
 - `hooks`: for now only regen-conf hooks in there
+- `src/cmd/`: the yunohost CLI subcommands
 - `src/helpers/`: high-level utilities to make your life easier
-- `src/*.rs`: the yunohost subcommands that can be built as independant binaries
 - `src/lib.rs`: the top of the library
+- `src/main.rs`: the entry-point of the yunohost binary
 - `tests/compat/*.sh`: each file contains tests for a specific yunohost command
 - `test.sh`: the main script triggering the test suite
 
 ## Try me out
 
-If you'd like to try a single tool, you can build it with `yunohost-` prepended, like so: `cargo build --release yunohost-user`. To build all the tools at once, you can do `cargo build --release`. The binaries are found in `target/x86_64-unknown-linux-musl`. They are targeting the [musl](https://en.wikipedia.org/wiki/Musl) so that they work magically across [glibc](https://en.wikipedia.org/wiki/Glibc) versions, for example when compiling from Archlinux or Debian Bookworm.
+To build the yunohost binary, you can do `cargo build --release`. The binaries are found in `target/x86_64-unknown-linux-musl`. They are targeting the [musl](https://en.wikipedia.org/wiki/Musl) so that they work magically across [glibc](https://en.wikipedia.org/wiki/Glibc) versions, for example when compiling from Archlinux or Debian Bookworm.
 
 **Warning:** Don't forget the `--release` flag. Using rust binaries in debug mode can lead to very slow code and crashes.
+
+To compile the regen-conf hooks, use the `hooks` feature flag, like this: `cargo build --release --features hooks`.
 
 ## Test me
 
@@ -60,7 +63,7 @@ Some notes about integration tests:
 - it compares success/timing between python and rust version ; an error in execution will show the path to the logged command output
 - it compares JSON output between python and rust version ; if the outputs don't match after normalization (via jq) then it shows a path to the logged (normalized) diff
 
-Just one note about Rust execution speed: **YES IT IS THAT FAST**. Sometimes when the server is busy it will climb to 0.01s for one command, otherwise `time -f %e` is not capable to time it properly. I'm fine with that, this is not a scientific benchmark it's just to make sure it's not horribly slow because of a mistake.
+Just one note about Rust execution speed: **YES IT IS THAT FAST**. Sometimes when the server is busy it will climb to 0.03s for one command, otherwise `time -f %e` is not capable to time it properly. I'm fine with that, this is not a scientific benchmark it's just to make sure it's not horribly slow because of a mistake.
 
 ## Test something about the Python version
 
