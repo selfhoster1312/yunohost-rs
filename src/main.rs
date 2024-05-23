@@ -1,11 +1,7 @@
 use clap::Parser;
 use log::LevelFilter;
 
-use yunohost::{
-    cmd::YunohostCommand,
-    error::*,
-    // helpers::output::*,
-};
+use yunohost::{cmd::YunohostCommand, helpers::output::exit_result};
 
 #[derive(Clone, Debug, Parser)]
 #[command(version, about, long_about = None)]
@@ -18,7 +14,7 @@ struct YunohostCli {
     command: YunohostCommand,
 }
 
-fn main() -> Result<(), Error> {
+fn main() {
     // Parse the typed CLI
     let cli = YunohostCli::parse();
 
@@ -33,7 +29,7 @@ fn main() -> Result<(), Error> {
             .init();
     }
 
-    cli.command.run()?;
-
-    Ok(())
+    // This helper function will set the proper exit code
+    // and print errors recursively
+    exit_result(cli.command.run());
 }

@@ -41,10 +41,8 @@ impl SettingsGetCommand {
         let mut settings = SettingsConfigPanel::new();
 
         let key = translate_legacy_settings_to_configpanel_settings(&self.setting);
-        let val = settings.get(&key, mode);
 
-        // println!("{}", json_or_yaml_output(&val, self.json)?);
-        output::fallible(val);
+        output::exit_result_output(settings.get(key, mode));
 
         Ok(())
     }

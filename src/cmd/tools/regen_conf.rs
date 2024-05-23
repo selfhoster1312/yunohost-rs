@@ -32,29 +32,33 @@ impl RegenConfCommand {
         }
 
         if self.list_pending {
-            let pending = _get_pending_conf(&self.names)?;
-
-            if !self.with_diff {
-                println!("{}", output::format(&pending)?);
-            } else {
-                let mut pending_diff: BTreeMap<
-                    String,
-                    BTreeMap<RelativeConfFile, PendingConfDiff>,
-                > = BTreeMap::new();
-
-                for (category, conf_files) in pending {
-                    let mut category_files: BTreeMap<RelativeConfFile, PendingConfDiff> =
-                        BTreeMap::new();
-                    for (system_path, pending_path) in conf_files {
-                        category_files.insert(system_path, pending_path.into_pending_diff()?);
-                    }
-
-                    pending_diff.insert(category, category_files);
-                }
-                println!("{}", output::format(&pending_diff)?);
-            }
+            self.run_list_pending()?;
         } else {
             unimplemented!("No command");
+        }
+
+        Ok(())
+    }
+
+    pub fn run_list_pending(&self) -> Result<(), Error> {
+        let pending = _get_pending_conf(&self.names)?;
+
+        if !self.with_diff {
+            output::exit_success(pending);
+        } else {
+            let mut pending_diff: BTreeMap<String, BTreeMap<RelativeConfFile, PendingConfDiff>> =
+                BTreeMap::new();
+
+            for (category, conf_files) in pending {
+                let mut category_files: BTreeMap<RelativeConfFile, PendingConfDiff> =
+                    BTreeMap::new();
+                for (system_path, pending_path) in conf_files {
+                    category_files.insert(system_path, pending_path.into_pending_diff()?);
+                }
+
+                pending_diff.insert(category, category_files);
+            }
+            output::exit_success(pending_diff);
         }
 
         Ok(())
