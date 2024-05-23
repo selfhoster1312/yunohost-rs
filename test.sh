@@ -61,7 +61,7 @@ server_check() {
 run_tests() {
 	chmod +x tests/compat/*
 	rsync -e "$ssh" --quiet -av tests/* "$1":/tmp/yunohost-compat/
-	rsync -e "$ssh" --quiet --exclude='*/' -av target/$ARCH/release/yunohost-* "$1":/tmp/yunohost-compat
+	rsync -e "$ssh" --quiet --exclude='*/' -av target/$ARCH/release/yunohost "$1":/tmp/yunohost-compat
 	
 	declare -a foundTests
 	

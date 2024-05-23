@@ -1,37 +1,28 @@
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use log::LevelFilter;
 
 use yunohost::{
+    cmd::YunohostCommand,
     error::*,
-    helpers::{hook::*, output::*},
+    // helpers::output::*,
 };
 
 #[derive(Clone, Debug, Parser)]
 #[command(version, about, long_about = None)]
-struct Cli {
+struct YunohostCli {
     /// Enable debug logging
     #[arg(short, long)]
     debug: bool,
 
     #[command(subcommand)]
-    command: SubCommand,
-}
-
-#[derive(Clone, Debug, Subcommand)]
-pub enum SubCommand {
-    List {
-        /// Enable json output
-        #[arg(long)]
-        json: bool,
-
-        #[arg()]
-        action: String,
-    },
+    command: YunohostCommand,
 }
 
 fn main() -> Result<(), Error> {
-    let cli = Cli::parse();
+    // Parse the typed CLI
+    let cli = YunohostCli::parse();
 
+    // Check whether to enable debug log
     if cli.debug {
         pretty_env_logger::formatted_builder()
             .filter_level(LevelFilter::Debug)
@@ -42,12 +33,7 @@ fn main() -> Result<(), Error> {
             .init();
     }
 
-    match cli.command {
-        SubCommand::List { action, json } => {
-            let list = HookList::for_action(&action);
-            println!("{}", json_or_yaml_output(&list.names(), json)?);
-        }
-    }
+    cli.command.run()?;
 
     Ok(())
 }

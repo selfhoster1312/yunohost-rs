@@ -6,6 +6,10 @@ edition = "2021"
 [profile.release]
 strip = true
 
+[features]
+# Compile regen-conf hooks
+hooks = []
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 # Some entries in the dependencies are commented because they are not used (yet?)
@@ -63,91 +67,93 @@ path = "src/lib.rs"
 [[bin]]
 name = "01-yunohost"
 path = "hooks/conf_regen/01-yunohost.rs"
+required-features = ["hooks"]
 
 [[bin]]
-name = "yunohost-hook"
-path = "src/hook.rs"
-
-[[bin]]
-name = "yunohost-settings"
-path = "src/settings.rs"
-
-[[bin]]
-name = "yunohost-tools"
-path = "src/tools.rs"
-
-[[bin]]
-name = "yunohost-user"
-path = "src/user.rs"
-
-# [[bin]]
-# name = "yunohost-regenconf"
-# path = "src/regenconf.rs"
+name = "yunohost"
+path = "src/main.rs"
 
 # [[bin]]
 # name = "02-ssl"
 # path = "src/hooks/02-ssl.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "03-ssh"
 # path = "src/hooks/03-ssh.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "06-slapd"
 # path = "src/hooks/06-slapd.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "09-nslcd"
 # path = "src/hooks/09-nslcd.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "10-apt"
 # path = "src/hooks/10-apt.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "12-metronome"
 # path = "src/hooks/12-metronome.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "15-nginx"
 # path = "src/hooks/15-nginx.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "19-postfix"
 # path = "src/hooks/19-postfix.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "25-dovecot"
 # path = "src/hooks/25-dovecot.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "31-rspamd"
 # path = "src/hooks/31-rspamd.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "34-mysql"
 # path = "src/hooks/34-mysql.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "35-postgresql"
 # path = "src/hooks/35-postgresql.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "36-redis"
 # path = "src/hooks/36-redis.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "37-mdns"
 # path = "src/hooks/37-mdns.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "43-dnsmasq"
 # path = "src/hooks/43-dnsmasq.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "46-nsswitch"
 # path = "src/hooks/46-nsswitch.rs"
+# required-features = ["hooks"]
 
 # [[bin]]
 # name = "52-fail2ban"
 # path = "src/hooks/52-fail2ban.rs"
+# required-features = ["hooks"]

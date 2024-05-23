@@ -1,16 +1,37 @@
 use clap::{Parser, Subcommand};
-use log::LevelFilter;
 use serde::Serialize;
 
 use std::collections::BTreeMap;
 
-use yunohost::{
+use crate::{
     error::*,
     helpers::mail::*,
-    helpers::output::*,
+    helpers::output,
     helpers::user::{UserAttr, UserQuery, YunohostUser},
-    moulinette::i18n,
 };
+
+#[derive(Clone, Debug, Parser)]
+pub struct UserCommand {
+    #[command(subcommand)]
+    cmd: UserSubCommand,
+}
+
+impl UserCommand {
+    pub fn run(&self) -> Result<(), Error> {
+        match &self.cmd {
+            UserSubCommand::UserInfo(cmd) => cmd.run(),
+            UserSubCommand::UserList(cmd) => cmd.run(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Subcommand)]
+pub enum UserSubCommand {
+    #[command(name = "info")]
+    UserInfo(UserInfoCommand),
+    #[command(name = "list")]
+    UserList(UserListCommand),
+}
 
 #[derive(Clone, Debug, Parser)]
 pub struct UserInfoCommand {
@@ -23,6 +44,10 @@ pub struct UserInfoCommand {
 
 impl UserInfoCommand {
     fn run(&self) -> Result<(), Error> {
+        if self.json {
+            output::enable_json();
+        }
+
         // let fields = vec!(
         //     UserAttr::Fullname,
         //     UserAttr::Mail,
@@ -39,7 +64,7 @@ impl UserInfoCommand {
         let user = DefaultSingle::try_from(user)?;
 
         // Format the output
-        let output = json_or_yaml_output(&user, self.json)?;
+        let output = output::format(&user)?;
         println!("{}", output);
 
         Ok(())
@@ -57,6 +82,10 @@ pub struct UserListCommand {
 
 impl UserListCommand {
     fn run(&self) -> Result<(), Error> {
+        if self.json {
+            output::enable_json();
+        }
+
         // Get the userlist from the LDAP DB
         let users = YunohostUser::list(None)?;
 
@@ -64,57 +93,11 @@ impl UserListCommand {
         let users = DefaultList::from(users);
 
         // Format the output
-        let output = json_or_yaml_output(&users, self.json)?;
+        let output = output::format(&users)?;
         println!("{}", output);
 
         Ok(())
     }
-}
-
-#[derive(Clone, Debug, Parser)]
-#[command(version, about, long_about = None)]
-struct Cli {
-    /// Enable debug logging
-    #[arg(short, long)]
-    debug: bool,
-
-    #[command(subcommand)]
-    command: SubCommand,
-}
-
-#[derive(Clone, Debug, Subcommand)]
-pub enum SubCommand {
-    #[command(name = "info")]
-    UserInfo(UserInfoCommand),
-    #[command(name = "list")]
-    UserList(UserListCommand),
-}
-
-fn main() -> Result<(), Error> {
-    let cli = Cli::parse();
-
-    if cli.debug {
-        pretty_env_logger::formatted_builder()
-            .filter_level(LevelFilter::Debug)
-            .init();
-    } else {
-        pretty_env_logger::formatted_builder()
-            .filter_level(LevelFilter::Info)
-            .init();
-    }
-
-    i18n::init()?;
-
-    match cli.command {
-        SubCommand::UserInfo(cmd) => {
-            cmd.run()?;
-        }
-        SubCommand::UserList(cmd) => {
-            cmd.run()?;
-        }
-    }
-
-    Ok(())
 }
 
 #[derive(Clone, Debug, Serialize)]

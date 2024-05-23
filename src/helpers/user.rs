@@ -4,10 +4,7 @@ use tokio::runtime::Builder as RuntimeBuilder;
 
 use std::str::FromStr;
 
-use crate::{
-    error::*,
-    helpers::ldap::*,
-};
+use crate::{error::*, helpers::ldap::*};
 
 /// A specific user to query information about.
 ///

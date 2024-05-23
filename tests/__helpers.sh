@@ -77,7 +77,7 @@ benchPythonRust() {
   fi
   pythonStatus="$(cat /tmp/test.status)"
 
-  startBench /tmp/yunohost-compat/yunohost-$yunoCmd "$@" &> /tmp/test.output
+  startBench /tmp/yunohost-compat/yunohost $yunoCmd "$@" &> /tmp/test.output
   rustCode=$?
   rustOutput="$(cat /tmp/test.output)"
   if OUTPUT="$rustOutput" formatSuccess $rustCode ERROR "$(cat /tmp/yunohost-compat/test.time)" > /tmp/test.status; then

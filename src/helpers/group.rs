@@ -65,4 +65,3 @@ impl YunohostGroup {
         Ok(())
     }
 }
-
