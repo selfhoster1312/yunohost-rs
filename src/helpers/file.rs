@@ -1,4 +1,10 @@
+//! File manipulation helpers.
+//!
+//! In this module, [`path`] will help the Python afficionados create path objects,
+//! and the [`Paths`] class contains helper methods to interact with paths objects.
+
 use camino::{Utf8Path, Utf8PathBuf};
+use derive_deref::Deref;
 use file_owner::PathExt;
 use snafu::prelude::*;
 
@@ -8,68 +14,174 @@ use std::path::{Path, PathBuf};
 
 use crate::error::*;
 
-pub fn path_exists<T: AsRef<Path>>(path: T) -> bool {
-    path.as_ref().exists()
-}
+/// A high-level wrapper for paths.
+///
+/// This type enables higher-level convenience methods for operations like [`read_dir`](Self::read_dir), as well
+/// as integration with Yunohost [`Error`](crate::Error). Inside is actually a [`Utf8PathBuf`](camino::Utf8PathBuf),
+/// and so it can also be used both as a standard library [`&str`] and [`Path`](std::path::Path).
+///
+/// `StrPath` can be build from any stringy value, like so:
+///
+/// ```rust
+/// let path = StrPath::from("/etc/yunohost");
+/// ```
+// ASYNC NOTE: If we ever go async, this entire struct needs to be rewritten with async primitives...
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Deref)]
+pub struct StrPath(Utf8PathBuf);
 
-pub fn is_dir<T: AsRef<Path>>(path: T) -> bool {
-    path.as_ref().is_dir()
-}
-
-pub fn is_file<T: AsRef<Path>>(path: T) -> bool {
-    path.as_ref().is_file()
-}
-
-pub fn file_owner<T: AsRef<Path>>(path: T) -> String {
-    path.as_ref().owner().unwrap().name().unwrap().unwrap()
-}
-
-pub fn set_file_owner<T: AsRef<Path>>(path: T, owner: &str) {
-    path.as_ref().set_owner(owner).unwrap();
-}
-
-pub fn file_group<T: AsRef<Path>>(path: T) -> String {
-    path.as_ref().group().unwrap().name().unwrap().unwrap()
-}
-/// - intermittent IO errors
-
-pub fn set_file_group<T: AsRef<Path>>(path: T, group: &str) {
-    path.as_ref().set_group(group).unwrap();
-}
-
-pub fn file_mode<T: AsRef<Path>>(path: T) -> u32 {
-    let meta = fs::metadata(path).unwrap();
-    meta.mode()
-}
-
-pub fn set_file_mode<T: AsRef<Path>>(path: T, mode: u32) {
-    fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
-}
-
-pub fn chown<T: AsRef<Path>>(path: T, req_owner: &str, req_group: Option<&str>) {
-    let path = path.as_ref();
-
-    let (owner, group) = path.owner_group().unwrap();
-
-    if owner.name().unwrap().unwrap() != req_owner {
-        set_file_owner(path, req_owner);
+impl StrPath {
+    /// Build a new stringy path from a string slice. For a more lax method, use [`StrPath::from`].
+    pub fn new(path: &str) -> StrPath {
+        StrPath(Utf8PathBuf::from(path))
     }
 
-    if let Some(req_group) = req_group {
-        if group.name().unwrap().unwrap() != req_group {
-            set_file_group(path, req_group);
+    /// Return a reference to the underlying UTF8 path.
+    pub fn as_path(&self) -> &Utf8Path {
+        self.0.as_path()
+    }
+
+    /// Lookup ownership information for this path.
+    pub fn owner_get(&self) -> Result<String, Error> {
+        let owner = self
+            .as_path()
+            .owner()
+            .context(PathOwnerMetadataSnafu { path: self.clone() })?
+            .name()
+            .context(PathOwnerNameSnafu { path: self.clone() })?
+            .context(PathOwnerNameNotFoundSnafu { path: self.clone() })?;
+
+        Ok(owner)
+    }
+
+    /// Sets ownership information for this path. For both owner/group setting, use [`chown`](Self::chown).
+    pub fn owner_set(&self, owner: &str) -> Result<(), Error> {
+        self.set_owner(owner).context(PathOwnerSetSnafu {
+            owner: owner.to_string(),
+            path: self.clone(),
+        })
+    }
+
+    /// Lookup group information for this path.
+    pub fn group_get(&self) -> Result<String, Error> {
+        let group = self
+            .as_path()
+            .group()
+            .context(PathGroupMetadataSnafu { path: self.clone() })?
+            .name()
+            .context(PathGroupNameSnafu { path: self.clone() })?
+            .context(PathGroupNameNotFoundSnafu { path: self.clone() })?;
+
+        Ok(group)
+    }
+
+    /// Sets group information for this path. For both owner/group setting, use [`chown`](Self::chown).
+    pub fn group_set(&self, group: &str) -> Result<(), Error> {
+        self.set_group(group).context(PathGroupSetSnafu {
+            group: group.to_string(),
+            path: self.clone(),
+        })
+    }
+
+    /// Lookup mode information for this path.
+    pub fn mode_get(&self) -> Result<u32, Error> {
+        let meta = fs::metadata(&self).context(PathModeSnafu { path: self.clone() })?;
+        Ok(meta.mode())
+    }
+
+    /// Sets mode information for this path.
+    pub fn mode_set(&self, mode: u32) -> Result<(), Error> {
+        fs::set_permissions(&self, fs::Permissions::from_mode(mode)).context(PathModeSetSnafu {
+            path: self.clone(),
+            mode,
+        })
+    }
+
+    /// Sets both owner and group information for this path. Use [`owner_set`](Self::owner_set) or [`group_set`](Self::group_set)
+    /// if that's not what you want.
+    pub fn chown(&self, req_owner: &str, req_group: &str) -> Result<(), Error> {
+        let (owner, group) = self
+            .owner_group()
+            .context(PathChownMetadataSnafu { path: self.clone() })?;
+
+        let found_owner = owner
+            .name()
+            .context(PathOwnerNameSnafu { path: self.clone() })
+            // Wrap in outer context so we don't need to duplicate error types
+            .context(PathChownOwnerSnafu)?
+            // Now we have to unwrap the inner option
+            .context(PathOwnerNameNotFoundSnafu { path: self.clone() })
+            // Wrap in outer context so we don't need to duplicate error types
+            .context(PathChownOwnerSnafu)?;
+
+        let found_group = group
+            .name()
+            .context(PathGroupNameSnafu { path: self.clone() })
+            // Wrap in outer context so we don't need to duplicate error types
+            .context(PathChownGroupSnafu)?
+            // Now we have to unwrap the inner option
+            .context(PathGroupNameNotFoundSnafu { path: self.clone() })
+            // Wrap in outer context so we don't need to duplicate error types
+            .context(PathChownGroupSnafu)?;
+
+        if found_owner != req_owner || found_group != req_group {
+            self.set_owner_group(req_owner, req_group)
+                .context(PathChownSetSnafu {
+                    owner: req_owner.to_string(),
+                    group: req_group.to_string(),
+                    path: self.clone(),
+                })?;
         }
+
+        Ok(())
+    }
+
+    /// Two operations at the same time...
+    pub fn chown_and_mode(&self, mode: u32, user: &str, group: Option<&str>) -> Result<(), Error> {
+        self.mode_set(mode)?;
+        if let Some(group) = group {
+            self.chown(user, group)?;
+        } else {
+            self.owner_set(user)?;
+        }
+
+        Ok(())
     }
 }
 
-pub fn chown_recurse<T: AsRef<Path>>(path: T, owner: &str, group: &str) {
-    let path = path.as_ref();
+impl<T: AsRef<str>> From<T> for StrPath {
+    fn from(path: T) -> StrPath {
+        StrPath::new(path.as_ref())
+    }
+}
+
+impl std::fmt::Display for StrPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.0)
+    }
+}
+
+impl AsRef<Path> for StrPath {
+    fn as_ref(&self) -> &Path {
+        self.0.as_ref()
+    }
+}
+
+/// Generate a new path from any valid UTF-8 string.
+///
+/// This is a special class that contains high-level helpers that integrate well
+/// with other Yunohost helpers and errors. See [`StrPath`] for more.
+pub fn path<T: AsRef<str>>(path: T) -> StrPath {
+    StrPath::from(path.as_ref())
+}
+pub fn chown_recurse<T: AsRef<Path>>(p: T, owner: &str, group: &str) {
+    let p = p.as_ref().file_name().unwrap().to_str().unwrap();
+    let path = StrPath::from(p);
     if path.is_dir() {
         for entry in fs::read_dir(path).unwrap() {
             chown_recurse(entry.unwrap().path(), owner, group);
         }
     } else {
-        chown(path, owner, Some(group));
+        path.chown(owner, group).unwrap();
     }
 }
 

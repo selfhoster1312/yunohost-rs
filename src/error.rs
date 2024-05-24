@@ -128,6 +128,84 @@ pub enum Error {
     // ===================
     // src/helpers/file.rs
     // ===================
+    #[snafu(display("Failed to read ownership metadata for path: {path}"))]
+    PathOwnerMetadata {
+        path: helpers::file::StrPath,
+        source: file_owner::FileOwnerError,
+    },
+    #[snafu(display("Failed to lookup user information for owner of path: {path}"))]
+    PathOwnerName {
+        path: helpers::file::StrPath,
+        source: file_owner::FileOwnerError,
+    },
+    #[snafu(display("Failed to find username for owner of path: {path}"))]
+    PathOwnerNameNotFound { path: helpers::file::StrPath },
+
+    #[snafu(display("Failed to set owner {owner} for path {path}"))]
+    PathOwnerSet {
+        owner: String,
+        path: helpers::file::StrPath,
+        source: file_owner::FileOwnerError,
+    },
+
+    #[snafu(display("Failed to read group metadata for path: {path}"))]
+    PathGroupMetadata {
+        path: helpers::file::StrPath,
+        source: file_owner::FileOwnerError,
+    },
+    #[snafu(display("Failed to lookup group information for group of path: {path}"))]
+    PathGroupName {
+        path: helpers::file::StrPath,
+        source: file_owner::FileOwnerError,
+    },
+    #[snafu(display("Failed to find groupname for group of path: {path}"))]
+    PathGroupNameNotFound { path: helpers::file::StrPath },
+
+    #[snafu(display("Failed to set group {group} for path: {path}"))]
+    PathGroupSet {
+        group: String,
+        path: helpers::file::StrPath,
+        source: file_owner::FileOwnerError,
+    },
+
+    #[snafu(display("Failed to read permissions (mode) for path: {path}"))]
+    PathMode {
+        path: helpers::file::StrPath,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("Failed to set permissions (mode) to {mode:o} for path: {path}"))]
+    PathModeSet {
+        mode: u32,
+        path: helpers::file::StrPath,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("Failed to read metadata for path: {path}"))]
+    PathChownMetadata {
+        path: helpers::file::StrPath,
+        source: file_owner::FileOwnerError,
+    },
+
+    #[snafu(display("Failed to read owner information... see error above"))]
+    PathChownOwner {
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[snafu(display("Failed to read group information... see error above"))]
+    PathChownGroup {
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[snafu(display("Failed to chown {owner}:{group} for path: {path}"))]
+    PathChownSet {
+        owner: String,
+        group: String,
+        path: helpers::file::StrPath,
+        source: file_owner::FileOwnerError,
+    },
 
     //    fn ensure_remove_file
     #[snafu(display("ensure_file_remove failed to remove file {}", path.display()))]

@@ -124,7 +124,7 @@ pub fn _get_pending_conf(
     let mut res: BTreeMap<String, BTreeMap<RelativeConfFile, PendingConfFile>> = BTreeMap::new();
 
     // No pending directory, nothing to see here.
-    if !is_dir(&pending_dir) {
+    if !path(&pending_dir).is_dir() {
         debug!("No such regen-conf pending directory: {pending_dir}");
         return Ok(res);
     }
@@ -139,7 +139,7 @@ pub fn _get_pending_conf(
 
     for name in categories {
         let category_pending_path = pending_dir.join(&name);
-        if !is_dir(&category_pending_path) {
+        if !path(&category_pending_path).is_dir() {
             debug!("regen-conf: Skip non-dir {category_pending_path}");
             continue;
         }

@@ -25,7 +25,8 @@ impl RegenConfCommand {
             output::enable_json();
         }
 
-        if path_exists("/etc/yunohost/settings.json") && !path_exists("/etc/yunohost/settings.yml")
+        if path("/etc/yunohost/settings.json").exists()
+            && !path("/etc/yunohost/settings.yml").exists()
         {
             eprintln!("This regenconf version can only run after 0025_global_settings_to_configpanel migration.");
             panic!();

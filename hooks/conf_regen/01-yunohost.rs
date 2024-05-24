@@ -127,22 +127,22 @@ fn do_init_regen() -> Result<(), Error> {
 
     let conf_dir = PathBuf::from("/usr/share/yunohost/conf/yunohost");
 
-    if !is_dir("/etc/yunohost") {
+    if !path("/etc/yunohost").is_dir() {
         mkdir("/etc/yunohost").unwrap();
     }
 
     // set default current_host
-    if !is_file("/etc/yunohost/current_host") {
+    if !path("/etc/yunohost/current_host").is_file() {
         write("/etc/yunohost/current_host", "yunohost.org").unwrap();
     }
 
     // copy default services and firewall
-    if !is_file("/etc/yunohost/firewall.yml") {
+    if !path("/etc/yunohost/firewall.yml").is_file() {
         copy(conf_dir.join("firewall.yml"), "/etc/yunohost/firewall.yml").unwrap();
     }
 
     // allow users to access /media directory
-    if !is_dir("/etc/skel/media") {
+    if !path("/etc/skel/media").is_dir() {
         mkdir("/media").unwrap();
         symlink("/media", "/etc/skel/media").unwrap();
     }
@@ -164,20 +164,23 @@ fn do_init_regen() -> Result<(), Error> {
 
     // Backup folders
     mkdir_p("/home/yunohost.backup/archives");
-    chmod("/home/yunohost.backup/archives", 0o750);
-    chown("/home/yunohost.backup/archives", "root", Some("admins"));
+    path("/home/yunohost.backup/archives")
+        .chown_and_mode(0o750, "root", Some("admins"))
+        .unwrap();
 
     // Empty ssowat json persistent conf
     write("/etc/ssowat/conf.json.persistent", "{}").unwrap();
-    chmod("/etc/ssowat/conf.json.persistent", 0o644);
-    chown("/etc/ssowat/conf.json.persistent", "root", Some("root"));
+    path("/etc/ssowat/conf.json.persistent")
+        .chown_and_mode(0o644, "root", Some("root"))
+        .unwrap();
 
     // Empty service conf
     // touch /etc/yunohost/services.yml
 
     mkdir_p("/var/cache/yunohost/repo");
-    chown("/var/cache/yunohost", "root", Some("root"));
-    chmod("/var/cache/yunohost", 0o700);
+    path("/var/cache/yunohost")
+        .chown_and_mode(0o700, "root", Some("root"))
+        .unwrap();
 
     copy(
         conf_dir.join("yunohost-api.service"),
@@ -309,35 +312,37 @@ fn do_post_regen(regen_conf_files: Option<String>) -> Result<(), Error> {
     // # Enfore permissions #
     // ######################
 
-    chown("/home/yunohost.backup", "root", Some("admins"));
-    chmod("/home/yunohost.backup", 0o700);
+    path("/home/yunohost.backup")
+        .chown_and_mode(0o700, "root", Some("admins"))
+        .unwrap();
+    path("/home/yunohost.backup/archives")
+        .chown_and_mode(0o700, "root", Some("admins"))
+        .unwrap();
+    path("/var/cache/yunohost")
+        .chown_and_mode(0o700, "root", Some("root"))
+        .unwrap();
 
-    chown("/home/yunohost.backup/archives", "root", Some("admins"));
-    chmod("/home/yunohost.backup/archives", 0o770);
-
-    chown("/var/cache/yunohost", "root", Some("root"));
-    chmod("/var/cache/yunohost", 0o700);
-
-    if path_exists("/var/www/.well-known/ynh-diagnosis") {
-        chmod("/var/www/.well-known/ynh-diagnosis", 0o775);
+    if path("/var/www/.well-known/ynh-diagnosis").exists() {
+        path("/var/www/.well-known/ynh-diagnosis")
+            .mode_set(0o775)
+            .unwrap();
     }
 
     // NB: x permission for 'others' is important for ssl-cert (and maybe mdns), otherwise slapd will fail to start because can't access the certs
-    chmod("/etc/yunohost", 0o755);
+    path("/etc/yunohost").mode_set(0o755).unwrap();
 
-    for path in glob("/etc/systemd/system/*.service").unwrap() {
-        let path = path.unwrap();
+    for p in glob("/etc/systemd/system/*.service").unwrap() {
+        let p = StrPath::from(p.unwrap().to_str().unwrap());
         // Some are symlinks, in which case chown/chmod does not work
-        if is_file(&path) {
-            chown(&path, "root", Some("root"));
-            chmod(&path, 0o644);
+        if p.is_file() {
+            p.chown_and_mode(0o644, "root", Some("root")).unwrap();
         }
     }
 
     for file in glob("/etc/php/*/fpm/pool.d/*.conf").unwrap() {
-        let file = file.unwrap();
-        chown(&file, "root", Some("root"));
-        chmod(&file, 0o644);
+        let file = StrPath::from(file.unwrap().to_str().unwrap());
+
+        file.chown_and_mode(0o644, "root", Some("root")).unwrap();
     }
 
     // Certs
@@ -363,7 +368,8 @@ fn do_post_regen(regen_conf_files: Option<String>) -> Result<(), Error> {
             } else {
                 chmod(&path, 0o755);
             }
-            chown(&path, "root", Some("root"));
+            let p = StrPath::from(path.to_str().unwrap());
+            p.chown("root", "root").unwrap();
         }
     }
 
@@ -373,9 +379,9 @@ fn do_post_regen(regen_conf_files: Option<String>) -> Result<(), Error> {
     }
 
     for user in YunohostUser::usernames().context(ConfRegenYunohostPostUsersSnafu)? {
-        let home = format!("/home/{user}");
-        if is_dir(&home) {
-            let _ = cmd("setfacl", vec!["-m", "g:all_users:---", &home]);
+        let home = path(format!("/home/{user}"));
+        if home.is_dir() {
+            let _ = cmd("setfacl", vec!["-m", "g:all_users:---", home.as_str()]);
         }
     }
 
@@ -412,7 +418,8 @@ fn do_post_regen(regen_conf_files: Option<String>) -> Result<(), Error> {
         .collect::<Vec<(PathBuf, bool)>>()
     {
         if do_chown {
-            chown(&file, "root", Some("root"));
+            let file = StrPath::from(file.to_str().unwrap());
+            file.chown("root", "root").unwrap();
         }
         chmod(&file, 0o600);
     }
@@ -423,8 +430,8 @@ fn do_post_regen(regen_conf_files: Option<String>) -> Result<(), Error> {
         "/etc/yunohost/apps",
         "/etc/yunohost/domains",
     ] {
-        chown(path, "root", None);
-        chmod(path, 0o700);
+        let p = StrPath::from(path);
+        p.chown_and_mode(0o700, "root", None).unwrap();
     }
 
     // Create ssh.app and sftp.app groups if they don't exist yet
@@ -465,7 +472,7 @@ fn do_post_regen(regen_conf_files: Option<String>) -> Result<(), Error> {
             let service_file = format!("{entry}.service");
             if regen_conf_files.contains(&service_file) {
                 systemd_reload = true;
-                if path_exists(&format!("/etc/systemd/system/{service_file}")) {
+                if path(&format!("/etc/systemd/system/{service_file}")).exists() {
                     systemd_enable.push(entry.into());
                 } else {
                     systemd_disable.push(entry.into());
@@ -508,7 +515,7 @@ fn do_post_regen(regen_conf_files: Option<String>) -> Result<(), Error> {
     change_dpkg_vendor("/etc/dpkg/origins/yunohost")
         .context(ConfRegenYunohostPreDPKGVendorSnafu)?;
 
-    if path_exists("/etc/yunohost/installed") {
+    if path("/etc/yunohost/installed").exists() {
         ensure_file_remove("/etc/profile.d/check_yunohost_is_installed.sh")
             .context(ConfRegenYunohostPreIsInstalledCheckSnafu)?;
     }
