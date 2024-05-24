@@ -22,7 +22,7 @@ pub struct MailStorageUse {
 impl MailStorageUse {
     pub fn from_name_and_quota(user: &str, quota: &str) -> Result<Self, Error> {
         let limit = if quota.starts_with("0") {
-            i18n::n("unlimit", None)?
+            i18n::yunohost_no_context("unlimit")?
         } else {
             quota.to_string()
         };
@@ -32,7 +32,7 @@ impl MailStorageUse {
         if !SystemCtl::is_active("dovecot") {
             warn!(
                 "{}",
-                i18n::n("mailbox_used_space_dovecot_down", None).context(
+                i18n::yunohost_no_context("mailbox_used_space_dovecot_down").context(
                     MailStorageLookupSnafu {
                         user: user.to_string(),
                     }
@@ -47,9 +47,9 @@ impl MailStorageUse {
         {
             debug!(
                 "{}",
-                i18n::n(
+                i18n::yunohost_context(
                     "mailbox_disabled",
-                    Some(hashmap!("user".to_string() => user.to_string()))
+                    hashmap!("user".to_string() => user.to_string())
                 )
                 .context(MailStorageLookupSnafu {
                     user: user.to_string(),

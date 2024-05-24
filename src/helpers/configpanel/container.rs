@@ -26,10 +26,12 @@ impl ContainerModel {
                     ("help", Some(i18n_key)) => {
                         let i18n_key = format!("{i18n_key}.{}_help", &self.id);
                         // UNWRAP NOTE: Init can fail but otherwise this is safe..
-                        if i18n::n_exists(&i18n_key).unwrap() {
+                        if i18n::yunohost_exists(&i18n_key).unwrap() {
                             // UNWRAP NOTE: We just checked if the key exists so this is safe
-                            self.attrs
-                                .insert(key, Value::String(i18n::n(&i18n_key, None).unwrap()));
+                            self.attrs.insert(
+                                key,
+                                Value::String(i18n::yunohost_no_context(&i18n_key).unwrap()),
+                            );
                         }
                     }
                     _ => {}

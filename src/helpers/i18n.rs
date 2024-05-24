@@ -10,7 +10,8 @@ use crate::moulinette::i18n;
 // We try to find a value for the current locale, or the default locale
 // worst case we take the first entry
 pub fn _value_for_locale(values: &Table) -> String {
-    let current_locale = i18n::get_locale();
+    // TODO: error condition
+    let current_locale = i18n::locale_get().unwrap();
 
     if values.contains_key(&current_locale) {
         return values
