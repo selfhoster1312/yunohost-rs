@@ -7,8 +7,7 @@ use crate::{
     helpers::file::{readlink_canonicalize, symlink},
 };
 
-/// Change dpkg vendor
-/// see https://wiki.debian.org/Derivatives/Guidelines#Vendor
+/// Change dpkg vendor, as per the [Debian documentation](https://wiki.debian.org/Derivatives/Guidelines#Vendor).
 pub fn change_dpkg_vendor<T: AsRef<Path>>(vendor: T) -> Result<(), Error> {
     let vendor = vendor.as_ref();
 

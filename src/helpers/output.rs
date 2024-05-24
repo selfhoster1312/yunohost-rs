@@ -14,8 +14,8 @@ pub fn enable_json() {
 
 /// Format the output in JSON or YAML.
 ///
-/// The format is decided by the state of the [`JSON_OUTPUT`] setting, which is usually
-/// set by CLI command when they receive a `--json` argument.
+/// The format is decided by the global state of the application, which is set by the [`enable_json`] function.
+/// This is which is usually set by CLI command when they receive a `--json` argument.
 pub fn format<T: Debug + Serialize>(output: &T) -> Result<String, Error> {
     // If JSON output was not requested yet, default to false
     let output = if *JSON_OUTPUT.get_or_init(|| false) {

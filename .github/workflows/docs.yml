@@ -24,8 +24,7 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v3
       - name: Run cargo doc
-        #run: RUSTDOCFLAGS="-D warnings" cargo doc --lib --all-features
-        run: cargo doc --lib --all-features
+        run: RUSTDOCFLAGS="-D warnings" cargo doc --lib --all-features
       - name: Add index
         run: echo "<meta http-equiv=\"refresh\" content=\"0; url=yunohost\">" > target/doc/index.html
       - name: Create yunohost-rs/doc folder

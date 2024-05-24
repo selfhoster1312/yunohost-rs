@@ -80,7 +80,7 @@ impl<'de> Deserialize<'de> for RelativeConfFile {
 /// An absolute path to the pending conf in PENDING_CONF_DIR.
 ///
 /// This is the default output of `yunohost tools regen-conf --list-pending`,
-/// use the [`PendingConfFile::to_pending_diff`] to generate the `--with-diff` output.
+/// use the [`PendingConfFile::into_pending_diff`] to generate the `--with-diff` output.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PendingConfFile(Utf8PathBuf);
 
