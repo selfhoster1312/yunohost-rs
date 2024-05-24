@@ -1,7 +1,7 @@
 //! File manipulation helpers.
 //!
 //! In this module, [`path`] will help the Python afficionados create path objects,
-//! and the [`Paths`] class contains helper methods to interact with paths objects.
+//! and the [`StrPath`] class contains helper methods to interact with those path objects.
 
 use camino::{Utf8Path, Utf8PathBuf};
 use derive_deref::Deref;
@@ -16,9 +16,9 @@ use crate::error::*;
 
 /// A high-level wrapper for paths.
 ///
-/// This type enables higher-level convenience methods for operations like [`read_dir`](Self::read_dir), as well
-/// as integration with Yunohost [`Error`](crate::Error). Inside is actually a [`Utf8PathBuf`](camino::Utf8PathBuf),
-/// and so it can also be used both as a standard library [`&str`] and [`Path`](std::path::Path).
+/// This type enables higher-level convenience methods for operations like read_dir (TODO), as well
+/// as integration with Yunohost [`Error`]. Inside is actually a [`Utf8PathBuf`],
+/// and so it can also be used both as a standard library [`&str`] and [`Path`].
 ///
 /// `StrPath` can be build from any stringy value, like so:
 ///
