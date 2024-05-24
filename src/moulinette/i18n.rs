@@ -9,10 +9,10 @@ use crate::helpers::file::*;
 
 use std::collections::HashMap;
 
-pub static DEFAULT_LOCALE_FALLBACK: &'static str = "en";
+pub(crate) static DEFAULT_LOCALE_FALLBACK: &'static str = "en";
 
 // Wrap in OnceLock to make sure it's only initialized once. Wrap in RwLock to allow inner mutability.
-pub static STATIC_I18N: OnceLock<RwLock<Moulinette18n>> = OnceLock::new();
+pub(crate) static STATIC_I18N: OnceLock<RwLock<Moulinette18n>> = OnceLock::new();
 
 pub struct Translator {
     // locale_dir: Utf8PathBuf,
@@ -128,7 +128,7 @@ impl Moulinette18n {
     }
 }
 
-pub fn get_system_locale() -> String {
+pub(crate) fn get_system_locale() -> String {
     let locale = env::var("LC_ALL").or_else(|_| env::var("LANG")).unwrap();
 
     locale.chars().take(2).collect()
