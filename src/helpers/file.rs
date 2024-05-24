@@ -1,5 +1,5 @@
 //! File manipulation helpers.
-//!
+//! 
 //! In this module, [`path`] will help the Python afficionados create path objects,
 //! and the [`StrPath`] class contains helper methods to interact with those path objects.
 
