@@ -1,22 +1,18 @@
 use snafu::prelude::*;
 
-use std::path::{Path, PathBuf};
-
-use crate::{
-    error::*,
-    helpers::file::{readlink_canonicalize, symlink},
-};
+use crate::{error::*, helpers::file::*};
 
 /// Change dpkg vendor, as per the [Debian documentation](https://wiki.debian.org/Derivatives/Guidelines#Vendor).
-pub fn change_dpkg_vendor<T: AsRef<Path>>(vendor: T) -> Result<(), Error> {
-    let vendor = vendor.as_ref();
+pub fn change_dpkg_vendor(vendor: &StrPath) -> Result<(), Error> {
+    let default_origins = path("/etc/dpkg/origins/default");
+    let current_default = default_origins
+        .canonicalize()
+        .context(ChangeDPKGVendorReadSnafu)?;
 
-    let default_origins = PathBuf::from("/etc/dpkg/origins/default");
-    let current_default =
-        readlink_canonicalize(&default_origins).context(ChangeDPKGVendorReadSnafu)?;
-
-    if current_default != vendor {
-        symlink(vendor, &default_origins, true).context(ChangeDPKGVendorWriteSnafu)?;
+    if &current_default != vendor {
+        default_origins
+            .symlink_to_target(vendor, true)
+            .context(ChangeDPKGVendorWriteSnafu)?;
     }
 
     Ok(())

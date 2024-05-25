@@ -10,7 +10,7 @@ use snafu::prelude::*;
 
 use std::fs;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::error::*;
 
@@ -33,6 +33,17 @@ impl StrPath {
     /// Build a new stringy path from a string slice. For a more lax method, use [`StrPath::from`].
     pub fn new(path: &str) -> StrPath {
         StrPath(Utf8PathBuf::from(path))
+    }
+
+    /// Tries to parse a real Path into a StrPath. Fails if the path is not valid unicode.
+    pub fn from_path(path: &Path) -> Result<Self, Error> {
+        if let Some(path) = path.to_str() {
+            Ok(Self::new(path))
+        } else {
+            Err(Error::PathUnicode {
+                path: path.to_string_lossy().to_string(),
+            })
+        }
     }
 
     /// Return a reference to the underlying UTF8 path.
@@ -216,6 +227,66 @@ impl StrPath {
     pub fn read_lines(&self) -> Result<Vec<String>, Error> {
         Ok(self.read()?.lines().map(String::from).collect())
     }
+
+    /// Creates a symlink on `self` pointing to `target`.
+    ///
+    /// If `force` is true, an existing file `self` will be deleted first.
+    ///
+    /// Errors when:
+    ///   - `self` exists and `force` is not true
+    ///   - creating the symlink failed
+    pub fn symlink_to_target(&self, target: &Utf8Path, force: bool) -> Result<(), Error> {
+        if force && self.exists() {
+            self.file_remove().context(PathSymlinkRemoveSnafu {
+                target: StrPath::from(target),
+                link: self.clone(),
+            })?;
+        }
+
+        std::os::unix::fs::symlink(target, &self).context(PathSymlinkCreateSnafu {
+            target: StrPath::from(target),
+            link: self.clone(),
+        })?;
+
+        Ok(())
+    }
+
+    /// Removes an existing file.
+    ///
+    /// Errors when:
+    ///   - the file does not exist
+    ///   - the file is not a file, but a directory
+    ///   - removing the file failed
+    pub fn file_remove(&self) -> Result<(), Error> {
+        fs::remove_file(self).context(PathFileRemoveSnafu { path: self.clone() })?;
+
+        Ok(())
+    }
+
+    /// Resolves symlinks until they've reached a stable place on the filesystem.
+    ///
+    /// Errors when:
+    ///   - `path` does not exist
+    ///   - an intermediate path is not a directory or does not exist
+    ///   - the final path does not exist
+    pub fn canonicalize(&self) -> Result<Self, Error> {
+        let target = self
+            .0
+            .canonicalize()
+            .context(PathCanonicalizeSnafu { path: self.clone() })?;
+
+        Self::from_path(&target).context(PathCanonicalizeParseSnafu { link: self.clone() })
+    }
+
+    pub fn read_link(&self) -> Result<Self, Error> {
+        if !self.is_symlink() {
+            return Err(Error::PathReadLinkNotSymlink { path: self.clone() });
+        }
+
+        let target = std::fs::read_link(&self).context(PathReadLinkSnafu { path: self.clone() })?;
+
+        Self::from_path(&target).context(PathReadLinkParseSnafu { link: self.clone() })
+    }
 }
 
 impl<T: AsRef<str>> From<T> for StrPath {
@@ -244,19 +315,6 @@ pub fn path<T: AsRef<str>>(path: T) -> StrPath {
     StrPath::from(path.as_ref())
 }
 
-/// Resolves symlinks until they've reached a stable place on the filesystem.
-///
-/// Errors when:
-///   - `path` does not exist
-///   - an intermediate path is not a directory or does not exist
-///   - the final path does not exist, maybe????
-pub fn readlink_canonicalize<T: AsRef<Path>>(path: T) -> Result<PathBuf, Error> {
-    let path = path.as_ref();
-    path.canonicalize().context(ReadLinkCanonicalizeSnafu {
-        path: path.to_path_buf(),
-    })
-}
-
 /// Make sure a file does not exist.
 ///
 /// Errors when:
@@ -264,54 +322,11 @@ pub fn readlink_canonicalize<T: AsRef<Path>>(path: T) -> Result<PathBuf, Error> 
 ///
 /// Does not error when the file does not exist.
 pub fn ensure_file_remove<T: AsRef<Path>>(path: T) -> Result<(), Error> {
-    let path = path.as_ref();
+    let path = StrPath::from_path(path.as_ref())?;
     if path.is_file() {
-        file_remove(path).context(EnsureFileRemoveSnafu {
-            path: path.to_path_buf(),
-        })?;
+        path.file_remove()
+            .context(EnsureFileRemoveSnafu { path: path.clone() })?;
     }
-
-    Ok(())
-}
-
-/// Removes an existing file.
-///
-/// Errors when:
-///   - the file does not exist
-///   - removing the file failed
-pub fn file_remove<T: AsRef<Path>>(path: T) -> Result<(), Error> {
-    let path = path.as_ref();
-    fs::remove_file(path).context(FileRemoveSnafu {
-        path: path.to_path_buf(),
-    })?;
-
-    Ok(())
-}
-
-/// Creates a symlink `link` pointing to `source`.
-///
-/// If `force` is true, an existing file `source` will be deleted first.
-///
-/// Errors when:
-///   - `source` exists and `force` is not true
-pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(
-    source: T,
-    link: U,
-    force: bool,
-) -> Result<(), Error> {
-    let source = source.as_ref();
-    let link = link.as_ref();
-
-    if force && link.exists() {
-        ensure_file_remove(link).context(SymlinkCreateRemoveSnafu {
-            symlink_source: source.to_path_buf(),
-            symlink_link: link.to_path_buf(),
-        })?;
-    }
-    std::os::unix::fs::symlink(source, link).context(SymlinkCreateSymlinkSnafu {
-        symlink_source: source.to_path_buf(),
-        symlink_link: link.to_path_buf(),
-    })?;
 
     Ok(())
 }

@@ -203,10 +203,10 @@ fn do_init_regen() -> Result<(), Error> {
 
     // Yunohost-firewall is enabled only during postinstall, not init, not 100% sure why
 
-    let p = path(conf_dir.join("dpkg-origins").to_str().unwrap());
-    p.copy_to(&path("/etc/dpkg/origins/yunohost")).unwrap();
-    change_dpkg_vendor("/etc/dpkg/origins/yunohost")
-        .context(ConfRegenYunohostInitDPKGVendorSnafu)?;
+    let origins_conf = path(conf_dir.join("dpkg-origins").to_str().unwrap());
+    let yuno_vendor = path("/etc/dpkg/origins/yunohost");
+    origins_conf.copy_to(&yuno_vendor).unwrap();
+    change_dpkg_vendor(&yuno_vendor).context(ConfRegenYunohostInitDPKGVendorSnafu)?;
 
     Ok(())
 }
@@ -515,7 +515,7 @@ fn do_post_regen(regen_conf_files: Option<String>) -> Result<(), Error> {
         }
     }
 
-    change_dpkg_vendor("/etc/dpkg/origins/yunohost")
+    change_dpkg_vendor(&path("/etc/dpkg/origins/yunohost"))
         .context(ConfRegenYunohostPreDPKGVendorSnafu)?;
 
     if path("/etc/yunohost/installed").exists() {

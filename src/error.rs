@@ -230,44 +230,74 @@ pub enum Error {
         source: std::io::Error,
     },
 
+    #[snafu(display("symlink failed to create a symlink to {target} due to failing to remove existing file: {link}"))]
+    PathSymlinkRemove {
+        target: StrPath,
+        link: StrPath,
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[snafu(display("symlink to create a symlink to {target} at: {link}"))]
+    PathSymlinkCreate {
+        target: StrPath,
+        link: StrPath,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("file_remove failed to remove file {path}"))]
+    PathFileRemove {
+        path: StrPath,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("canonicalize failed to resolve links of {path}"))]
+    PathCanonicalize {
+        path: StrPath,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("Failed to read link from {link} because the target is not valid UTF-8"))]
+    PathCanonicalizeParse {
+        link: StrPath,
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[snafu(display(
+        "Failed to parse path because it's not valid UTF-8. It's approximately: {path}"
+    ))]
+    PathUnicode { path: String },
+
+    #[snafu(display("Failed to read_link on path because it's not a symlink: {path}"))]
+    PathReadLinkNotSymlink { path: StrPath },
+
+    #[snafu(display("Failed to read_link on path: {path}"))]
+    PathReadLink {
+        path: StrPath,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("Failed to read link from {link} because the target is not valid UTF-8"))]
+    PathReadLinkParse {
+        link: StrPath,
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
     // -------
 
     //    fn ensure_remove_file
-    #[snafu(display("ensure_file_remove failed to remove file {}", path.display()))]
+    #[snafu(display("ensure_file_remove failed to remove file {path}"))]
     EnsureFileRemove {
-        path: PathBuf,
+        path: StrPath,
         #[snafu(source(from(Error, Box::new)))]
         source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    //    fn readlink_canonicalize
-    #[snafu(display("readlink_canonicalize failed to resolve links of {}", path.display()))]
-    ReadLinkCanonicalize {
-        path: PathBuf,
-        source: std::io::Error,
     },
 
     //    fn remove_file
-    #[snafu(display("file_remove failed to remove file {}", path.display()))]
-    FileRemove {
-        path: PathBuf,
-        source: std::io::Error,
-    },
 
     //    fn symlink_create
-    #[snafu(display("symlink_create failed to create a symlink to {} due to failing to remove existing file: {}", symlink_source.display(), symlink_link.display()))]
-    SymlinkCreateRemove {
-        symlink_source: PathBuf,
-        symlink_link: PathBuf,
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-    #[snafu(display("symlink_create to create a symlink to {} at: {}", symlink_source.display(), symlink_link.display()))]
-    SymlinkCreateSymlink {
-        symlink_source: PathBuf,
-        symlink_link: PathBuf,
-        source: std::io::Error,
-    },
 
     //     fn read_dir_str / fn read_dir_filenames
     #[snafu(display("read_dir failed to read {}", path))]
