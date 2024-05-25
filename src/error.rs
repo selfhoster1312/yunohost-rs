@@ -207,6 +207,28 @@ pub enum Error {
         source: file_owner::FileOwnerError,
     },
 
+    #[snafu(display("Failed to create recursive directory (mkdir -p) until path: {path}"))]
+    PathMkdirP {
+        path: helpers::file::StrPath,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("Cannot copy {path} to {dest} because it is not a directory!"))]
+    PathCopyToNonDir {
+        path: helpers::file::StrPath,
+        dest: helpers::file::StrPath,
+    },
+
+    #[snafu(display("Failed to copy {path} to {dest}."))]
+    PathCopyFail {
+        path: helpers::file::StrPath,
+        dest: helpers::file::StrPath,
+        source: std::io::Error,
+    },
+
+
+    // -------
+
     //    fn ensure_remove_file
     #[snafu(display("ensure_file_remove failed to remove file {}", path.display()))]
     EnsureFileRemove {

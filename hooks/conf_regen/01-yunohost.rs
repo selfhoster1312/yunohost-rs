@@ -89,7 +89,7 @@ impl SystemdOverride {
     }
 
     pub fn pre(&self, content: &str) {
-        mkdir_p(&self.dir);
+        path(self.dir.to_str().unwrap()).mkdir_p().unwrap();
         write(self.dir.join("ynh-override.conf"), content).unwrap();
     }
 
@@ -148,25 +148,26 @@ fn do_init_regen() -> Result<(), Error> {
     }
 
     // Cert folders
-    mkdir_p("/etc/yunohost/certs");
-    chown_recurse("/etc/yunohost/certs", "root", "ssl-cert");
-    chmod("/etc/yunohost/certs", 0o750);
+    let p = path("/etc/yunohost/certs");
+    p.mkdir_p().unwrap();
+    p.chown_and_mode(0o750, "root", Some("ssl-cert")).unwrap();
 
     // App folders
-    mkdir_p("/etc/yunohost/apps");
-    chmod("/etc/yunohost/apps", 0o700);
-    mkdir_p("/home/yunohost.app");
-    chmod("/home/yunohost.app", 0o755);
+    let p = path("/etc/yunohost/apps");
+    p.mkdir_p().unwrap();
+    p.chmod(0o700).unwrap();
+    
+    let p = path("/home/yunohost.app");
+    p.chmod(0o755).unwrap();
 
     // Domain settings
-    mkdir_p("/etc/yunohost/domains");
-    chmod("/etc/yunohost/domains", 0o700);
+    let p = path("/etc/yunohost/domains");
+    p.chmod(0o700).unwrap();
 
     // Backup folders
-    mkdir_p("/home/yunohost.backup/archives");
-    path("/home/yunohost.backup/archives")
-        .chown_and_mode(0o750, "root", Some("admins"))
-        .unwrap();
+    let p = path("/home/yunohost.backup/archives");
+    p.mkdir_p().unwrap();
+    p.chown_and_mode(0o750, "root", Some("admins")).unwrap();
 
     // Empty ssowat json persistent conf
     write("/etc/ssowat/conf.json.persistent", "{}").unwrap();
@@ -177,10 +178,9 @@ fn do_init_regen() -> Result<(), Error> {
     // Empty service conf
     // touch /etc/yunohost/services.yml
 
-    mkdir_p("/var/cache/yunohost/repo");
-    path("/var/cache/yunohost")
-        .chown_and_mode(0o700, "root", Some("root"))
-        .unwrap();
+    let p = path("/var/cache/yunohost/repo");
+    p.mkdir_p().unwrap();
+    p.chown_and_mode(0o700, "root", Some("root")).unwrap();
 
     copy(
         conf_dir.join("yunohost-api.service"),
@@ -203,7 +203,8 @@ fn do_init_regen() -> Result<(), Error> {
 
     // Yunohost-firewall is enabled only during postinstall, not init, not 100% sure why
 
-    copy_to(conf_dir.join("dpkg-origins"), "/etc/dpkg/origins/yunohost");
+    let p = path(conf_dir.join("dpkg-origins").to_str().unwrap());
+    p.copy_to(&path("/etc/dpkg/origins/yunohost")).unwrap();
     change_dpkg_vendor("/etc/dpkg/origins/yunohost")
         .context(ConfRegenYunohostInitDPKGVendorSnafu)?;
 
@@ -212,7 +213,8 @@ fn do_init_regen() -> Result<(), Error> {
 
 fn do_pre_regen(pending_dir: PathBuf) -> Result<(), Error> {
     for dir in ["etc/systemd/system", "etc/cron.d", "etc/cron.daily"] {
-        mkdir_p(pending_dir.join(dir));
+        let dir = StrPath::from(pending_dir.join(dir).to_str().unwrap());
+        dir.mkdir_p().unwrap();
     }
 
     // add cron job for diagnosis to be ran at 7h and 19h + a random delay between
@@ -297,7 +299,7 @@ SHELL=/bin/bash
         .unwrap();
     }
 
-    mkdir_p(pending_dir.join("etc/dpkg/origins"));
+    path("/etc/dpkg/origins").mkdir_p().unwrap();
     copy(
         conf_dir.join("dpkg-origins"),
         pending_dir.join("etc/dpkg/origins/yunohost"),
@@ -347,28 +349,29 @@ fn do_post_regen(regen_conf_files: Option<String>) -> Result<(), Error> {
 
     // Certs
     // We do this with find because there could be a lot of them...
-    chown_recurse("/etc/yunohost/certs", "root", "ssl-cert");
-    chmod("/etc/yunohost/certs", 0o750);
+    let p = path("/etc/yunohost/certs");
+    p.chown_recurse("root", "ssl-cert").unwrap();
+    p.chmod(0o750).unwrap();
 
+    // TODO: readdir/glob integration
     for path in glob("/etc/yunohost/certs/**/*").unwrap() {
-        let path = path.unwrap();
-        if path.is_file() {
-            chmod(&path, 0o640);
+        let p = StrPath::from(path.unwrap().to_str().unwrap());
+        if p.is_file() {
+            p.chmod(0o640).unwrap();
         }
-        if path.is_dir() {
-            chmod(&path, 0o750);
+        if p.is_dir() {
+            p.chmod(0o750).unwrap();
         }
     }
 
     for path in glob("/etc/cron.*/yunohost-*").unwrap() {
-        let path = path.unwrap();
-        if path.is_file() {
-            if path.parent().unwrap().file_name().unwrap() == "cron.d" {
-                chmod(&path, 0o644);
+        let p = StrPath::from(path.unwrap().to_str().unwrap());
+        if p.is_file() {
+            if p.parent().unwrap().file_name().unwrap() == "cron.d" {
+                p.chmod(0o644).unwrap();
             } else {
-                chmod(&path, 0o755);
+                p.chmod(0o755).unwrap();
             }
-            let p = StrPath::from(path.to_str().unwrap());
             p.chown("root", "root").unwrap();
         }
     }
@@ -386,7 +389,7 @@ fn do_post_regen(regen_conf_files: Option<String>) -> Result<(), Error> {
     }
 
     // Domain settings
-    mkdir_p("/etc/yunohost/domains");
+    path("/etc/yunohost/domains").mkdir_p().unwrap();
 
     // Misc configuration / state files
     for (file, do_chown) in read_dir("/etc/yunohost")
@@ -417,11 +420,11 @@ fn do_post_regen(regen_conf_files: Option<String>) -> Result<(), Error> {
         })
         .collect::<Vec<(PathBuf, bool)>>()
     {
+        let file = StrPath::from(file.to_str().unwrap());
         if do_chown {
-            let file = StrPath::from(file.to_str().unwrap());
             file.chown("root", "root").unwrap();
         }
-        chmod(&file, 0o600);
+        file.chmod(0o600).unwrap();
     }
 
     // Apps folder, custom hooks folder

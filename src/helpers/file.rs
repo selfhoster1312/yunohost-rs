@@ -146,6 +146,63 @@ impl StrPath {
 
         Ok(())
     }
+
+    /// Recursive chown operation
+    pub fn chown_recurse(&self, owner: &str, group: &str) -> Result<(), Error> {
+        if self.is_dir() {
+            // TODO: unwrap needs readdir...
+            for entry in fs::read_dir(self).unwrap() {
+                // TODO: change this re-parsing here...
+                let entry = StrPath::from(entry.unwrap().path().to_str().unwrap());
+                entry.chown_recurse(owner, group)?;
+            }
+        } else {
+            self.chown(owner, group)?;
+        }
+
+        Ok(())
+    }
+
+    /// Wrapper for [`Self::mode_set`]
+    pub fn chmod(&self, mode: u32) -> Result<(), Error> {
+        self.mode_set(mode)
+    }
+
+    pub fn chmod_recurse(&self, mode: u32) -> Result<(), Error> {
+        if self.is_dir() {
+            // TODO: unwrap here needs readdir integration
+            for entry in fs::read_dir(self).unwrap() {
+                // TODO
+                let entry = StrPath::from(entry.unwrap().path().to_str().unwrap());
+                entry.chmod_recurse(mode)?;
+            }
+        } else {
+            self.mode_set(mode)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn mkdir_p(&self) -> Result<(), Error> {
+        if !self.is_dir() {
+            fs::create_dir_all(self).context(PathMkdirPSnafu { path: self.clone() })?;
+        }
+
+        Ok(())
+    }
+
+    pub fn copy_to(&self, dest: &StrPath) -> Result<(), Error> {
+        if !dest.is_dir() {
+            return Err(Error::PathCopyToNonDir { path: self.clone(), dest: dest.clone() });
+        }
+
+        // TODO
+        let file_name = self.file_name().unwrap();
+        fs::copy(self, dest.join(file_name)).context(PathCopyFailSnafu { path: self.clone(), dest: dest.clone() })?;
+
+        Ok(())
+    }
+
 }
 
 impl<T: AsRef<str>> From<T> for StrPath {
@@ -173,52 +230,8 @@ impl AsRef<Path> for StrPath {
 pub fn path<T: AsRef<str>>(path: T) -> StrPath {
     StrPath::from(path.as_ref())
 }
-pub fn chown_recurse<T: AsRef<Path>>(p: T, owner: &str, group: &str) {
-    let p = p.as_ref().file_name().unwrap().to_str().unwrap();
-    let path = StrPath::from(p);
-    if path.is_dir() {
-        for entry in fs::read_dir(path).unwrap() {
-            chown_recurse(entry.unwrap().path(), owner, group);
-        }
-    } else {
-        path.chown(owner, group).unwrap();
-    }
-}
 
-pub fn chmod<T: AsRef<Path>>(path: T, mode: u32) {
-    let path = path.as_ref();
 
-    let permissions = fs::metadata(path).unwrap().permissions();
-    if permissions.mode() != mode {
-        fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
-    }
-}
-
-pub fn chmod_recurse<T: AsRef<Path>>(path: T, mode: u32) {
-    let path = path.as_ref();
-    if path.is_dir() {
-        for entry in fs::read_dir(path).unwrap() {
-            chmod_recurse(entry.unwrap().path(), mode);
-        }
-    } else {
-        chmod(path, mode);
-    }
-}
-
-pub fn mkdir_p<T: AsRef<Path>>(path: T) {
-    let path = path.as_ref();
-    if !path.is_dir() {
-        fs::create_dir_all(path).unwrap();
-    }
-}
-
-pub fn copy_to<T: AsRef<Path>, U: AsRef<Path>>(source: T, dest: U) {
-    let source = source.as_ref();
-    let dest = dest.as_ref();
-    let file_name = source.file_name().unwrap();
-
-    fs::copy(source, dest.join(file_name)).unwrap();
-}
 
 /// Resolves symlinks until they've reached a stable place on the filesystem.
 ///
