@@ -29,9 +29,16 @@ pub(crate) static YUNOHOST_LOCALES_DIR: &'static str = "/usr/share/yunohost/loca
 pub(crate) static MOULINETTE_GLOBAL_I18N: OnceLock<RwLock<Translator>> = OnceLock::new();
 pub(crate) static MOULINETTE_LOCALES_DIR: &'static str = "/usr/share/moulinette/locales";
 
+type Translation = HashMap<String, String>;
+
+enum MaybeTranslation {
+    NotLoaded(camino::Utf8PathBuf),
+    Loaded(Translation),
+}
+
 pub(crate) struct Translator {
     locale: String,
-    translations: HashMap<String, HashMap<String, String>>,
+    translations: HashMap<String, RwLock<MaybeTranslation>>,
 }
 
 impl Translator {
@@ -50,7 +57,7 @@ impl Translator {
     }
 
     pub fn new(locales_dir: &Utf8Path, default_locale: &str) -> Result<Translator, Error> {
-        let mut translations: HashMap<String, HashMap<String, String>> = HashMap::new();
+        let mut translations = HashMap::new();
         let read_dir = ReadDir::new(&locales_dir).context(LocalesReadFailedSnafu {
             path: locales_dir.to_path_buf(),
         })?;
@@ -64,21 +71,37 @@ impl Translator {
 
             let locale_name = file_name.trim_end_matches(".json");
 
-            let locale_str = read(&locale).context(LocalesReadFailedSnafu {
-                path: locale.to_path_buf(),
-            })?;
-            let locale_values: HashMap<String, String> = serde_json::from_str(&locale_str)
-                .context(LocalesLoadFailedSnafu {
-                    path: locale.to_path_buf(),
-                })?;
-
-            translations.insert(locale_name.to_string(), locale_values);
+            if locale_name == "en"
+                || locale_name == default_locale
+                || locale_name == DEFAULT_LOCALE_FALLBACK
+            {
+                let translation = Self::load_locale(locale)?;
+                translations.insert(
+                    locale_name.to_string(),
+                    RwLock::new(MaybeTranslation::Loaded(translation)),
+                );
+            } else {
+                translations.insert(
+                    locale_name.to_string(),
+                    RwLock::new(MaybeTranslation::NotLoaded(locale.clone())),
+                );
+            }
         }
 
         Ok(Translator {
             locale: default_locale.to_string(),
             translations,
         })
+    }
+
+    fn load_locale(locale: &Utf8Path) -> Result<Translation, Error> {
+        let locale_str = read(&locale).context(LocalesReadFailedSnafu {
+            path: locale.to_path_buf(),
+        })?;
+        let locale_values = serde_json::from_str(&locale_str).context(LocalesLoadFailedSnafu {
+            path: locale.to_path_buf(),
+        })?;
+        Ok(locale_values)
     }
 
     pub fn set_locale(&mut self, locale: &str) {
@@ -90,28 +113,52 @@ impl Translator {
     }
 
     pub fn key_exists(&self, key: &str) -> bool {
-        self.translations
+        let locale = self
+            .translations
             .get(&"en".to_string())
             .unwrap()
-            .contains_key(key)
+            .read()
+            .unwrap();
+        match &*locale {
+            MaybeTranslation::Loaded(translation) => translation.contains_key(key),
+            _ => false,
+        }
     }
 
     pub fn translate_no_context(&self, key: &str) -> Result<String, Error> {
         // UNWRAP NOTE: If the language requested doesn't exist, this unwrap is the least of your worries
         // TODO: maybe check the language exists when we change it?!
-        if let Some(val) = self.translations.get(&self.locale).unwrap().get(key) {
-            Ok(val.to_string())
-        } else {
-            let val = self
-                .translations
-                .get(DEFAULT_LOCALE_FALLBACK)
-                .unwrap()
-                .get(key)
-                .context(LocalesMissingKeySnafu {
-                    key: key.to_string(),
-                })?;
-            Ok(val.to_string())
+        if let Some(locale) = self.translations.get(&self.locale) {
+            {
+                let mut locale_mut = locale.write().unwrap();
+                if let MaybeTranslation::NotLoaded(locale) = &*locale_mut {
+                    let locale = Self::load_locale(&locale)?;
+                    *locale_mut = MaybeTranslation::Loaded(locale);
+                }
+            }
+            let locale = locale.read().unwrap();
+            let locale = match &*locale {
+                MaybeTranslation::Loaded(locale) => locale,
+                _ => unreachable!(),
+            };
+            if let Some(val) = locale.get(key) {
+                return Ok(val.to_string());
+            }
         }
+        let locale = self
+            .translations
+            .get(DEFAULT_LOCALE_FALLBACK)
+            .unwrap()
+            .read()
+            .unwrap();
+        let locale = match &*locale {
+            MaybeTranslation::Loaded(locale) => locale,
+            _ => unreachable!(),
+        };
+        let val = locale.get(key).context(LocalesMissingKeySnafu {
+            key: key.to_string(),
+        })?;
+        Ok(val.to_string())
     }
 
     pub fn translate_with_context(
