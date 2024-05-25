@@ -193,16 +193,21 @@ impl StrPath {
 
     pub fn copy_to(&self, dest: &StrPath) -> Result<(), Error> {
         if !dest.is_dir() {
-            return Err(Error::PathCopyToNonDir { path: self.clone(), dest: dest.clone() });
+            return Err(Error::PathCopyToNonDir {
+                path: self.clone(),
+                dest: dest.clone(),
+            });
         }
 
         // TODO
         let file_name = self.file_name().unwrap();
-        fs::copy(self, dest.join(file_name)).context(PathCopyFailSnafu { path: self.clone(), dest: dest.clone() })?;
+        fs::copy(self, dest.join(file_name)).context(PathCopyFailSnafu {
+            path: self.clone(),
+            dest: dest.clone(),
+        })?;
 
         Ok(())
     }
-
 }
 
 impl<T: AsRef<str>> From<T> for StrPath {
@@ -230,8 +235,6 @@ impl AsRef<Path> for StrPath {
 pub fn path<T: AsRef<str>>(path: T) -> StrPath {
     StrPath::from(path.as_ref())
 }
-
-
 
 /// Resolves symlinks until they've reached a stable place on the filesystem.
 ///

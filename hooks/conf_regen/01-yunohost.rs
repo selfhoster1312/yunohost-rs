@@ -156,7 +156,7 @@ fn do_init_regen() -> Result<(), Error> {
     let p = path("/etc/yunohost/apps");
     p.mkdir_p().unwrap();
     p.chmod(0o700).unwrap();
-    
+
     let p = path("/home/yunohost.app");
     p.chmod(0o755).unwrap();
 
