@@ -74,6 +74,22 @@ Some notes about integration tests:
 
 Just one note about Rust execution speed: **YES IT IS THAT FAST**. Sometimes when the server is busy it will climb to 0.03s for one command, otherwise `time -f %e` is not capable to time it properly. I'm fine with that, this is not a scientific benchmark it's just to make sure it's not horribly slow because of a mistake.
 
+Some other benchmarks from an actual Raspberry Pi:
+
+```
+Server raspberrypi.lan is ready for tests
+__runner.sh hook.sh settings.sh tools.sh user.sh
+DIFF                        PYTHON       RUST        COMMAND
+OK                          OK (5.41s)   OK (0.02s)  yunohost hook list --json conf_regen
+OK                          OK (7.63s)   OK (0.33s)  yunohost settings get --json security
+OK                          OK (7.89s)   OK (0.23s)  yunohost settings get --json security.webadmin
+OK                          OK (7.78s)   OK (0.04s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
+OK                          OK (11.13s)  OK (0.02s)  yunohost tools regen-conf --list-pending --json
+DIFF - /tmp/tmp.Rma4JMN6IP  OK (10.84s)  OK (0.03s)  yunohost tools regen-conf --list-pending --with-diff --json
+OK                          OK (8.12s)   OK (0.03s)  yunohost user list --json
+OK                          OK (13.03s)  OK (0.72s)  yunohost user info --json test2
+```
+
 ## Test something about the Python version
 
 It's complicated because it's all very interconnected. However, if you'd like to get a small subsystem, you can do something like this:
