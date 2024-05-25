@@ -20,7 +20,7 @@ if [ $? -eq 0 ]; then
   echo -n "$FIRST_PART_README" > "$README_FILE"
   echo "<!-- MAGICAL TEST START -->" >> "$README_FILE"
   echo "\`\`\`" >> "$README_FILE"
-  echo "$TEST_RESULT" >> "$README_FILE"
+  echo "$TEST_RESULT" | sed 's/\x1B\[[0-9;]\{1,\}[A-Za-z]//g' >> "$README_FILE"
   echo "\`\`\`" >> "$README_FILE"
   echo -n "<!-- MAGICAL TEST END -->" >> "$README_FILE"
   echo "$LAST_PART_README" >> "$README_FILE"
