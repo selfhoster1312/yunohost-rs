@@ -65,7 +65,8 @@ impl TryFrom<YunohostUser> for DefaultSingle {
     type Error = Error;
 
     fn try_from(user: YunohostUser) -> Result<Self, Error> {
-        let mailbox_quota = MailStorageUse::from_doveadm(&user.username, &user.mailbox_quota)?;
+        // let mailbox_quota = MailStorageUse::from_doveadm(&user.username, &user.mailbox_quota)?;
+        let mailbox_quota = MailStorageUse::from_disk(&user.username, &user.mailbox_quota)?;
         Ok(Self {
             username: user.username,
             fullname: user.fullname,
