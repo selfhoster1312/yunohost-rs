@@ -52,14 +52,14 @@ To run the integration test, give access for your machine's SSH key to a remote 
 Server kl.netlib.re is ready for tests
 __runner.sh hook.sh settings.sh tools.sh user.sh
 DIFF                        PYTHON      RUST        COMMAND
-[0;32mOK[0m                          [0;32mOK[0m (0.14s)  [0;32mOK[0m (0.00s)  yunohost hook list --json conf_regen
-[0;32mOK[0m                          [0;32mOK[0m (0.20s)  [0;32mOK[0m (0.01s)  yunohost settings get --json security
-[0;32mOK[0m                          [0;32mOK[0m (0.20s)  [0;32mOK[0m (0.02s)  yunohost settings get --json security.webadmin
-[0;32mOK[0m                          [0;32mOK[0m (0.20s)  [0;32mOK[0m (0.00s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
-[0;32mOK[0m                          [0;32mOK[0m (0.23s)  [0;32mOK[0m (0.00s)  yunohost tools regen-conf --list-pending --json
-[0;31mDIFF[0m - /tmp/tmp.f4IWCci7rf  [0;32mOK[0m (0.23s)  [0;32mOK[0m (0.00s)  yunohost tools regen-conf --list-pending --with-diff --json
-[0;32mOK[0m                          [0;32mOK[0m (0.21s)  [0;32mOK[0m (0.00s)  yunohost user list --json
-[0;32mOK[0m                          [0;32mOK[0m (0.55s)  [0;32mOK[0m (0.01s)  yunohost user info --json test2
+OK                          OK (0.16s)  OK (0.00s)  yunohost hook list --json conf_regen
+OK                          OK (0.20s)  OK (0.01s)  yunohost settings get --json security
+OK                          OK (0.17s)  OK (0.00s)  yunohost settings get --json security.webadmin
+OK                          OK (0.20s)  OK (0.00s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
+OK                          OK (0.23s)  OK (0.00s)  yunohost tools regen-conf --list-pending --json
+DIFF - /tmp/tmp.MozMm8Feje  OK (0.26s)  OK (0.00s)  yunohost tools regen-conf --list-pending --with-diff --json
+OK                          OK (0.21s)  OK (0.00s)  yunohost user list --json
+OK                          OK (0.52s)  OK (0.01s)  yunohost user info --json test2
 ```
 <!-- MAGICAL TEST END -->
 
@@ -80,14 +80,14 @@ Some other benchmarks from an actual Raspberry Pi:
 Server raspberrypi.lan is ready for tests
 __runner.sh hook.sh settings.sh tools.sh user.sh
 DIFF                        PYTHON       RUST        COMMAND
-OK                          OK (5.41s)   OK (0.02s)  yunohost hook list --json conf_regen
-OK                          OK (7.63s)   OK (0.33s)  yunohost settings get --json security
-OK                          OK (7.89s)   OK (0.23s)  yunohost settings get --json security.webadmin
-OK                          OK (7.78s)   OK (0.04s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
-OK                          OK (11.13s)  OK (0.02s)  yunohost tools regen-conf --list-pending --json
-DIFF - /tmp/tmp.Rma4JMN6IP  OK (10.84s)  OK (0.03s)  yunohost tools regen-conf --list-pending --with-diff --json
-OK                          OK (8.12s)   OK (0.03s)  yunohost user list --json
-OK                          OK (13.03s)  OK (0.72s)  yunohost user info --json test2
+OK                          OK (5.36s)   OK (0.02s)  yunohost hook list --json conf_regen
+OK                          OK (7.73s)   OK (0.13s)  yunohost settings get --json security
+OK                          OK (7.72s)   OK (0.05s)  yunohost settings get --json security.webadmin
+OK                          OK (7.55s)   OK (0.03s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
+OK                          OK (10.64s)  OK (0.02s)  yunohost tools regen-conf --list-pending --json
+DIFF - /tmp/tmp.cI9EcYl8a6  OK (10.87s)  OK (0.03s)  yunohost tools regen-conf --list-pending --with-diff --json
+OK                          OK (8.08s)   OK (0.03s)  yunohost user list --json
+OK                          OK (11.60s)  OK (0.41s)  yunohost user info --json test2
 ```
 
 ## Test something about the Python version
