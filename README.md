@@ -47,19 +47,23 @@ To run the unit tests (there aren't a lot yet), run `cargo test --release`. The 
 
 To run the integration test, give access for your machine's SSH key to a remote Yunohost server, then run `./test.sh SERVERNAME`. It will produce an output like this:
 
+<!-- MAGICAL TEST START -->
 ```
 Server kl.netlib.re is ready for tests
-__runner.sh hook.sh tools.sh user.sh
+__runner.sh hook.sh settings.sh tools.sh user.sh
 DIFF                        PYTHON      RUST        COMMAND
-OK                          OK (0.17s)  OK (0.00s)  yunohost hook list --json conf_regen
-OK                          OK (0.20s)  OK (0.02s)  yunohost settings get --json security
-OK                          OK (0.17s)  OK (0.01s)  yunohost settings get --json security.webadmin
-OK                          OK (0.17s)  OK (0.00s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
-OK                          OK (0.29s)  OK (0.00s)  yunohost tools regen-conf --list-pending --json
-DIFF - /tmp/tmp.8zelzIV5zo  OK (0.24s)  OK (0.00s)  yunohost tools regen-conf --list-pending --with-diff --json
-OK                          OK (0.18s)  OK (0.01s)  yunohost user list --json
-OK                          OK (0.56s)  OK (0.01s)  yunohost user info --json test2
+[0;32mOK[0m                          [0;32mOK[0m (0.14s)  [0;32mOK[0m (0.00s)  yunohost hook list --json conf_regen
+[0;32mOK[0m                          [0;32mOK[0m (0.20s)  [0;32mOK[0m (0.01s)  yunohost settings get --json security
+[0;32mOK[0m                          [0;32mOK[0m (0.20s)  [0;32mOK[0m (0.02s)  yunohost settings get --json security.webadmin
+[0;32mOK[0m                          [0;32mOK[0m (0.20s)  [0;32mOK[0m (0.00s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
+[0;32mOK[0m                          [0;32mOK[0m (0.23s)  [0;32mOK[0m (0.00s)  yunohost tools regen-conf --list-pending --json
+[0;31mDIFF[0m - /tmp/tmp.f4IWCci7rf  [0;32mOK[0m (0.23s)  [0;32mOK[0m (0.00s)  yunohost tools regen-conf --list-pending --with-diff --json
+[0;32mOK[0m                          [0;32mOK[0m (0.21s)  [0;32mOK[0m (0.00s)  yunohost user list --json
+[0;32mOK[0m                          [0;32mOK[0m (0.55s)  [0;32mOK[0m (0.01s)  yunohost user info --json test2
 ```
+<!-- MAGICAL TEST END -->
+
+Run the `./update_readme.sh SERVERNAME` script to update the test output automatically.
 
 Some notes about integration tests:
 
