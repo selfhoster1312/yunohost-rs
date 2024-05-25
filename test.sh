@@ -45,10 +45,15 @@ server_check() {
 		stop_this_shit
 	fi
 
-	if ! $ssh "$1" yq --version &>/dev/null; then
-		echo "Server "$1" does not have yq! Please install it first!"
+	if ! $ssh "$1" /usr/bin/time --version &>/dev/null; then
+		echo "Server "$1" does not have time! Please install it first!"
 		stop_this_shit
 	fi
+
+	# if ! $ssh "$1" yq --version &>/dev/null; then
+	# 	echo "Server "$1" does not have yq! Please install it first!"
+	# 	stop_this_shit
+	# fi
 
 	if ! $ssh "$1" [ \$EUID -eq 0 ] &>/dev/null; then
 		echo "Please login as root on the server "$1""
