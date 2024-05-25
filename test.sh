@@ -1,12 +1,28 @@
 PREVDIR="$(pwd)"
 cd "$(dirname "$0")"
 
-ARCH="x86_64-unknown-linux-musl"
+if [[ "${2:-__NOTHING__}" == "__NOTHING__" ]]; then
+	ARCH="x86_64-unknown-linux-musl"
+else
+	case "$2" in
+		"x86" | "x86_64" | "adm64")
+			ARCH="x86_64-unknown-linux-musl"
+			;;
+		"raspberrypi" | "arm-linux-gnueabi" | "arm-linux-gnueabihf" | "arm-unknown-linux-gnueabihf" | "arm-unknown-linux-gnueabi" | "armel" | "armhf" )
+			ARCH="arm-unknown-linux-gnueabi"
+			export RUSTFLAGS="-C linker=arm-linux-gnueabi-gcc -C target-cpu=arm1176jzf-s"
+			;;
+		*)
+			echo "ERROR: Unknown CPU architecture: $2"
+			exit 1
+			;;
+	esac
+fi
 
 shopt -s nullglob
 
 help() {
-	echo "test.sh YUNOHOST_SERVER [BATS_PARAMS]"
+	echo "test.sh YUNOHOST_SERVER [ARCH]"
 	echo "  Start the test suite on remote YUNOHOST_SERVER server."
 	echo "  You need SSH key authentication without password."
 }
