@@ -8,6 +8,10 @@ This is a reimplementation of [Yunohost](https://yunohost.org/) structures and a
 <img alt="LOTR meme: One does not simply Rewrite It In Rust" src="https://camo.githubusercontent.com/a5c2198c5e2c4449cf1289c78c1c03ebd85728f7b662c9ee1f142641486d676e/68747470733a2f2f692e696d67666c69702e636f6d2f31706b3162692e6a7067">
 </p>
 
+## Documentation
+
+The documentation can be found online at **[selfhoster1312.github.io/yunohost-rs/doc/](https://selfhoster1312.github.io/yunohost-rs/doc/)**.
+
 ## Why
 
 It's not the first time i rewrite parts of Yunohost in Rust to make it faster. Another crime against my own sanity i committed was the [ssowat-rs experiment](https://kl.netlib.re/gitea/selfhoster1312/ssowat-rs) which gave me greater understanding to [make the actual new branch of ssowat faster](https://github.com/YunoHost/SSOwat/pull/220). All in all, there's two reasons to rewrite parts of Yunohost in Rust:
@@ -96,7 +100,7 @@ print(settings.get("", "classic"))
 - [ ] rewrite `yunohost settings get` in Rust (initial very incomplete implementation)
 - [x] output comparison in integration tests
 - [x] timing information in integration tests
-- [ ] Github Pages crate documentation
+- [x] Github Pages crate documentation
 - [x] Utf8Path (camino) integration for easier Path<->str interop
 - [ ] publish Debian repo on Github pages so people can test it without compiling
 - [x] rewrite moulinette.i18n for translations
