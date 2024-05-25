@@ -95,7 +95,8 @@ impl Translator {
     }
 
     fn load_locale(locale: &Utf8Path) -> Result<Translation, Error> {
-        let locale_str = read(&locale).context(LocalesReadFailedSnafu {
+        let locale = StrPath::from(locale);
+        let locale_str = locale.read().context(LocalesReadFailedSnafu {
             path: locale.to_path_buf(),
         })?;
         let locale_values = serde_json::from_str(&locale_str).context(LocalesLoadFailedSnafu {

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::helpers;
+use crate::helpers::file::StrPath;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -42,7 +43,7 @@ pub enum Error {
     ConfigPanelTooManySublevels { filter_key: String },
 
     #[snafu(display("ConfigPanel::_get_config_panel cannot find config file: {path}"))]
-    ConfigPanelReadConfigNotPath { path: Utf8PathBuf },
+    ConfigPanelReadConfigNotPath { path: StrPath },
 
     #[snafu(display("ConfigPanel::_get_config_panel: Option id {id} is a forbidden keyword."))]
     ConfigPanelReadConfigForbiddenKeyword { id: String },
@@ -130,60 +131,60 @@ pub enum Error {
     // ===================
     #[snafu(display("Failed to read ownership metadata for path: {path}"))]
     PathOwnerMetadata {
-        path: helpers::file::StrPath,
+        path: StrPath,
         source: file_owner::FileOwnerError,
     },
     #[snafu(display("Failed to lookup user information for owner of path: {path}"))]
     PathOwnerName {
-        path: helpers::file::StrPath,
+        path: StrPath,
         source: file_owner::FileOwnerError,
     },
     #[snafu(display("Failed to find username for owner of path: {path}"))]
-    PathOwnerNameNotFound { path: helpers::file::StrPath },
+    PathOwnerNameNotFound { path: StrPath },
 
     #[snafu(display("Failed to set owner {owner} for path {path}"))]
     PathOwnerSet {
         owner: String,
-        path: helpers::file::StrPath,
+        path: StrPath,
         source: file_owner::FileOwnerError,
     },
 
     #[snafu(display("Failed to read group metadata for path: {path}"))]
     PathGroupMetadata {
-        path: helpers::file::StrPath,
+        path: StrPath,
         source: file_owner::FileOwnerError,
     },
     #[snafu(display("Failed to lookup group information for group of path: {path}"))]
     PathGroupName {
-        path: helpers::file::StrPath,
+        path: StrPath,
         source: file_owner::FileOwnerError,
     },
     #[snafu(display("Failed to find groupname for group of path: {path}"))]
-    PathGroupNameNotFound { path: helpers::file::StrPath },
+    PathGroupNameNotFound { path: StrPath },
 
     #[snafu(display("Failed to set group {group} for path: {path}"))]
     PathGroupSet {
         group: String,
-        path: helpers::file::StrPath,
+        path: StrPath,
         source: file_owner::FileOwnerError,
     },
 
     #[snafu(display("Failed to read permissions (mode) for path: {path}"))]
     PathMode {
-        path: helpers::file::StrPath,
+        path: StrPath,
         source: std::io::Error,
     },
 
     #[snafu(display("Failed to set permissions (mode) to {mode:o} for path: {path}"))]
     PathModeSet {
         mode: u32,
-        path: helpers::file::StrPath,
+        path: StrPath,
         source: std::io::Error,
     },
 
     #[snafu(display("Failed to read metadata for path: {path}"))]
     PathChownMetadata {
-        path: helpers::file::StrPath,
+        path: StrPath,
         source: file_owner::FileOwnerError,
     },
 
@@ -203,29 +204,31 @@ pub enum Error {
     PathChownSet {
         owner: String,
         group: String,
-        path: helpers::file::StrPath,
+        path: StrPath,
         source: file_owner::FileOwnerError,
     },
 
     #[snafu(display("Failed to create recursive directory (mkdir -p) until path: {path}"))]
     PathMkdirP {
-        path: helpers::file::StrPath,
+        path: StrPath,
         source: std::io::Error,
     },
 
     #[snafu(display("Cannot copy {path} to {dest} because it is not a directory!"))]
-    PathCopyToNonDir {
-        path: helpers::file::StrPath,
-        dest: helpers::file::StrPath,
-    },
+    PathCopyToNonDir { path: StrPath, dest: StrPath },
 
     #[snafu(display("Failed to copy {path} to {dest}."))]
     PathCopyFail {
-        path: helpers::file::StrPath,
-        dest: helpers::file::StrPath,
+        path: StrPath,
+        dest: StrPath,
         source: std::io::Error,
     },
 
+    #[snafu(display("read failed to read {path}"))]
+    PathRead {
+        path: StrPath,
+        source: std::io::Error,
+    },
 
     // -------
 

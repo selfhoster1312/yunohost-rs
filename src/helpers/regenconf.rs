@@ -21,7 +21,7 @@ pub struct RegenConfFile {
 
 impl RegenConfFile {
     pub fn load() -> Result<Self, serde_yaml_ng::Error> {
-        serde_yaml_ng::from_str(&read(REGEN_CONF_FILE).unwrap())
+        serde_yaml_ng::from_str(&path(REGEN_CONF_FILE).read().unwrap())
     }
 }
 
@@ -197,12 +197,15 @@ fn _get_regenconf_hashes(
 }
 
 /// Empty files are emptied out later... for now they have a hash
+// TODO: File helpers and error cases
 fn _calculate_hash(path: &Utf8Path) -> Option<String> {
+    let path = StrPath::from(path);
+
     if !path.is_file() {
         return None;
     }
 
-    let digest = md5::compute(&read(path).unwrap());
+    let digest = md5::compute(path.read().unwrap());
     Some(format!("{:x}", digest))
 }
 
@@ -220,11 +223,17 @@ fn _update_conf_hashes(
     }
 }
 
+// TODO: file helper and error cases
 fn _get_files_diff(orig_file: &Utf8Path, new_file: &Utf8Path) -> String {
-    let orig_file = read(orig_file).unwrap_or(String::new());
-    let orig_lines = orig_file.lines().collect::<Vec<&str>>();
-    let new_file = read(new_file).unwrap_or(String::new());
-    let new_lines = new_file.lines().collect::<Vec<&str>>();
+    let orig_file = StrPath::from(orig_file);
+    let new_file = StrPath::from(new_file);
+    let orig_lines = orig_file.read_lines().unwrap_or(vec![]);
+    let new_lines = new_file.read_lines().unwrap_or(vec![]);
     let differ = Differ::new();
-    differ.compare(&orig_lines, &new_lines).join("")
+    differ
+        .compare(
+            &orig_lines.iter().map(|x| x.as_str()).collect::<Vec<&str>>(),
+            &new_lines.iter().map(|x| x.as_str()).collect::<Vec<&str>>(),
+        )
+        .join("")
 }

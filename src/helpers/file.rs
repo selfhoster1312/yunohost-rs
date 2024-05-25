@@ -208,6 +208,14 @@ impl StrPath {
 
         Ok(())
     }
+
+    pub fn read(&self) -> Result<String, Error> {
+        fs::read_to_string(self).context(PathReadSnafu { path: self.clone() })
+    }
+
+    pub fn read_lines(&self) -> Result<Vec<String>, Error> {
+        Ok(self.read()?.lines().map(String::from).collect())
+    }
 }
 
 impl<T: AsRef<str>> From<T> for StrPath {
@@ -306,11 +314,6 @@ pub fn symlink<T: AsRef<Path>, U: AsRef<Path>>(
     })?;
 
     Ok(())
-}
-
-pub fn read<T: AsRef<str>>(path: T) -> Result<String, Error> {
-    let path = Utf8PathBuf::from(path.as_ref());
-    fs::read_to_string(&path).context(ReadSnafu { path: path })
 }
 
 /// Lists the paths in a directory. See [`ReadDir::new`] to instantiate it.

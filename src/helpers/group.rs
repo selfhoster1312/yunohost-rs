@@ -14,12 +14,15 @@ impl YunohostGroup {
     ///   - reading /etc/group failed
     pub fn exists(name: &str) -> Result<bool, Error> {
         let expected = format!("{name}:");
-        Ok(read("/etc/group")
+        let found_group = path("/etc/group")
+            .read_lines()
             .context(YunohostGroupExistsReadSnafu {
                 name: name.to_string(),
             })?
-            .lines()
-            .any(|line| line.starts_with(&expected)))
+            .iter()
+            .any(|line| line.starts_with(&expected));
+
+        Ok(found_group)
     }
 
     /// Creates a POSIX group on the system.

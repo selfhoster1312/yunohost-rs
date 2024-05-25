@@ -20,7 +20,7 @@ pub struct MailStorageUse {
 }
 
 impl MailStorageUse {
-    pub fn from_name_and_quota(user: &str, quota: &str) -> Result<Self, Error> {
+    pub fn from_doveadm(user: &str, quota: &str) -> Result<Self, Error> {
         let limit = if quota.starts_with("0") {
             i18n::yunohost_no_context("unlimit")?
         } else {

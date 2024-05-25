@@ -1,4 +1,4 @@
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::Utf8Path;
 use snafu::prelude::*;
 use strum::Display;
 use toml::{Table, Value};
@@ -213,8 +213,8 @@ fn has_first_entry_in_toml_table_sub_tables(
 
 pub struct ConfigPanel {
     entity: String,
-    config_path: Utf8PathBuf,
-    save_path: Utf8PathBuf,
+    config_path: StrPath,
+    save_path: StrPath,
     _save_mode: SaveMode,
     // The actual "parsed" configuration
 
@@ -235,8 +235,8 @@ impl ConfigPanel {
             config: Table::default(),
             values: Table::default(),
             entity: entity.to_string(),
-            config_path: config_path.to_path_buf(),
-            save_path: save_path.to_path_buf(),
+            config_path: StrPath::from(config_path),
+            save_path: StrPath::from(save_path.to_path_buf()),
             _save_mode: save_mode,
         }
     }
@@ -260,14 +260,15 @@ impl ConfigPanel {
         let mut defaults = self._get_default_values();
 
         if self.save_path.is_file() {
-            let saved_values: serde_yaml_ng::Mapping = serde_yaml_ng::from_str(
-                &read(&self.save_path).context(ConfigPanelReadSavePathSnafu {
+            let saved_values: serde_yaml_ng::Mapping =
+                serde_yaml_ng::from_str(&self.save_path.read().context(
+                    ConfigPanelReadSavePathSnafu {
+                        entity: self.entity.to_string(),
+                    },
+                )?)
+                .context(ConfigPanelReadSavePathYamlSnafu {
                     entity: self.entity.to_string(),
-                })?,
-            )
-            .context(ConfigPanelReadSavePathYamlSnafu {
-                entity: self.entity.to_string(),
-            })?;
+                })?;
 
             // serde_yaml_ng::Mapping<Value, Value> needs to have Mapping<String, Value> for extending to toml::Table
             // let saved_values: HashMap<String, serde_yaml_ng::Value> = saved_values.into_iter().map(|(k, v)| (k.as_str().unwrap().to_string(), v)).collect();
@@ -687,9 +688,12 @@ impl ConfigPanel {
     }
 
     fn _get_raw_config(&self) -> Result<Table, Error> {
-        let content = read(&self.config_path).context(ConfigPanelReadConfigPathSnafu {
-            entity: self.entity.to_string(),
-        })?;
+        let content = self
+            .config_path
+            .read()
+            .context(ConfigPanelReadConfigPathSnafu {
+                entity: self.entity.to_string(),
+            })?;
         toml::from_str(&content).context(ConfigPanelReadConfigPathTomlSnafu {
             entity: self.entity.to_string(),
         })

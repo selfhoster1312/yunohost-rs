@@ -117,23 +117,23 @@ mod tests {
     fn alphanumeric_parts() {
         assert_eq!(
             (String::from("01"), String::from("yunohost")),
-            _extract_file_parts("01-yunohost")
+            _extract_filename_parts("01-yunohost")
         );
         assert_eq!(
             (String::from("abc"), String::from("yunohost")),
-            _extract_file_parts("abc-yunohost")
+            _extract_filename_parts("abc-yunohost")
         );
         assert_eq!(
             (String::from("01"), String::from("yunohost-01")),
-            _extract_file_parts("01-yunohost-01")
+            _extract_filename_parts("01-yunohost-01")
         );
         assert_eq!(
             (String::from("01"), String::from("yunohost")),
-            _extract_file_parts("01-yunohost.sh")
+            _extract_filename_parts("01-yunohost.sh")
         );
         assert_eq!(
             (String::from("50"), String::from("yunohost")),
-            _extract_file_parts("yunohost")
+            _extract_filename_parts("yunohost")
         );
     }
 }

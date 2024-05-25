@@ -1,5 +1,5 @@
 //! [`String`] and [`&str`]-related helpers.
-//! 
+//!
 //! Not a lot here yet...
 
 /// Capitalize the first letter of the given stringy value, returning a new string.
