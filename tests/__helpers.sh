@@ -81,12 +81,15 @@ benchPythonRust() {
   rustCode=$?
   rustOutput="$(cat /tmp/test.output)"
   if OUTPUT="$rustOutput" formatSuccess $rustCode ERROR "$(cat /tmp/yunohost-compat/test.time)" > /tmp/test.status; then
-    parsedOutput "$diffFormat" "$rustOutput" > /tmp/test.parsed.output
+    parsedOutput "$diffFormat" "$rustOutput" &> /tmp/test.parsed.output
     rustParsedCode=$?
     rustParsedOutput="$(cat /tmp/test.parsed.output)"
 
     if [ ! $rustParsedCode -eq 0 ]; then
-      OUTPUT="$rustParsedOutput" formatSuccess 1 INVALID > /tmp/test.status
+      # Parsing failed, place output + parsing errors in single file
+      echo -e "\n----------------- (COMMAND FINISHED HERE, PARSING ERRORS BELOW)" >> /tmp/test.output
+      echo "$rustParsedOutput" >> /tmp/test.output
+      OUTPUT="$(cat /tmp/test.output)" formatSuccess 1 INVALID > /tmp/test.status
       rustCode=1
     else
       echo "$rustParsedOutput" > /tmp/yunohost-compat/rust.parsed
