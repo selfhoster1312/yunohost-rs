@@ -72,15 +72,16 @@ impl OptionType {
     }
 }
 
-// TODO: what does this do? normalize... and ?
-// What is the difference between normalize and humanize?
-
 pub trait OptionTypeInterface {
     /// Whether the actual value should be hidden in output (eg. password/secret)
     fn hide_user_input_in_prompt(&self) -> bool;
-    /// Normalization takes any toml::Value and turns it into a properly-typed Value. Fallible process
+    /// Normalization takes any toml::Value and turns it into a properly-typed Value.
+    /// This process happens when querying a single value via [`ConfigPanel::get_single`],
+    /// for example when requesting a specific option via a 2-dotted filter key.
     fn normalize(&self, val: &Value) -> Option<Value>;
     /// Humanization takes the normalized value and formats it for output.
+    /// This process happens when querying multiple values via [`ConfigPanel::get_multi`],
+    /// for example when requesting an entire panel or section filter key.
     fn humanize(&self, val: &Value) -> Option<String>;
 }
 

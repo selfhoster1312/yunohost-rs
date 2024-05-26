@@ -11,14 +11,10 @@ use crate::helpers::file::StrPath;
 pub enum Error {
     // TODO: relocate
     #[snafu(display("Failed to parse TOML from string"))]
-    Toml {
-        source: toml::de::Error,
-    },
+    Toml { source: toml::de::Error },
 
     #[snafu(display("Failed to parse YAML from string"))]
-    Yaml {
-        source: serde_yaml_ng::Error,
-    },
+    Yaml { source: serde_yaml_ng::Error },
 
     #[snafu(display("An error happened inside the config panel"))]
     ConfigPanel {
@@ -55,9 +51,7 @@ pub enum Error {
         source: file_owner::FileOwnerError,
     },
     #[snafu(display("Failed to find username for owner of path: {path}"))]
-    PathOwnerNameNotFound {
-        path: StrPath,
-    },
+    PathOwnerNameNotFound { path: StrPath },
 
     #[snafu(display("Failed to set owner {owner} for path {path}"))]
     PathOwnerSet {
@@ -77,9 +71,7 @@ pub enum Error {
         source: file_owner::FileOwnerError,
     },
     #[snafu(display("Failed to find groupname for group of path: {path}"))]
-    PathGroupNameNotFound {
-        path: StrPath,
-    },
+    PathGroupNameNotFound { path: StrPath },
 
     #[snafu(display("Failed to set group {group} for path: {path}"))]
     PathGroupSet {
@@ -134,10 +126,7 @@ pub enum Error {
     },
 
     #[snafu(display("Cannot copy {path} to {dest} because it is not a directory!"))]
-    PathCopyToNonDir {
-        path: StrPath,
-        dest: StrPath,
-    },
+    PathCopyToNonDir { path: StrPath, dest: StrPath },
 
     #[snafu(display("Failed to copy {path} to {dest}."))]
     PathCopyFail {
@@ -189,14 +178,10 @@ pub enum Error {
     #[snafu(display(
         "Failed to parse path because it's not valid UTF-8. It's approximately: {path}"
     ))]
-    PathUnicode {
-        path: String,
-    },
+    PathUnicode { path: String },
 
     #[snafu(display("Failed to read_link on path because it's not a symlink: {path}"))]
-    PathReadLinkNotSymlink {
-        path: StrPath,
-    },
+    PathReadLinkNotSymlink { path: StrPath },
 
     #[snafu(display("Failed to read_link on path: {path}"))]
     PathReadLink {
@@ -252,9 +237,7 @@ pub enum Error {
     },
 
     #[snafu(display("Utf8PathBuf::from_path_buf failed because path is not valid UTF8: {}", path.display()))]
-    InvalidUnicodePath {
-        path: PathBuf,
-    },
+    InvalidUnicodePath { path: PathBuf },
 
     //     fn glob
     #[snafu(display("glob invalid pattern: {}", pattern))]
@@ -264,9 +247,7 @@ pub enum Error {
     },
 
     #[snafu(display("glob invalid read: {}", source.path().display()))]
-    Glob {
-        source: glob::GlobError,
-    },
+    Glob { source: glob::GlobError },
 
     // ===================
     // src/helpers/ldap.rs
@@ -284,14 +265,10 @@ pub enum Error {
 
     //     fn add (YunohostGroup::add)
     #[snafu(display("YunohostGroup::add failed because group {name} already exists."))]
-    YunohostGroupExists {
-        name: String,
-    },
+    YunohostGroupExists { name: String },
 
     #[snafu(display("YunohostGroup::add failed because groupadd {name} failed."))]
-    YunohostGroupCreate {
-        name: String,
-    },
+    YunohostGroupCreate { name: String },
 
     // ===================
     // src/helpers/ldap.rs
@@ -306,15 +283,11 @@ pub enum Error {
 
     // TODO
     #[snafu(display("Failed to bind on the LDAP database"))]
-    LdapBind {
-        source: ldap3::result::LdapError,
-    },
+    LdapBind { source: ldap3::result::LdapError },
 
     // TODO
     #[snafu(display("Failed to search the LDAP database"))]
-    LdapSearch {
-        source: ldap3::result::LdapError,
-    },
+    LdapSearch { source: ldap3::result::LdapError },
 
     // TODO
     // #[snafu(display("No such user: {}", username.as_str()))]
@@ -325,9 +298,7 @@ pub enum Error {
     },
 
     #[snafu(display("Failed to lookup permission {name}"))]
-    LdapPermissionNotFound {
-        name: String,
-    },
+    LdapPermissionNotFound { name: String },
 
     // TODO
     #[snafu(display("Empty username provided for login"))]
@@ -421,9 +392,7 @@ pub enum Error {
 
     //     fn from_str (UserAttr::from_str)
     #[snafu(display("UserAttr: unknown user field: {}", field))]
-    LdapUserAttrUnknown {
-        field: String,
-    },
+    LdapUserAttrUnknown { field: String },
 
     #[snafu(display("UserAttr: cannot request user password from LDAP"))]
     LdapUserAttrNotPassword,
@@ -448,9 +417,7 @@ pub enum Error {
 
     //     fn translate (Translator::translate)
     #[snafu(display("Missing translation key: {key}"))]
-    LocalesMissingKey {
-        key: String,
-    },
+    LocalesMissingKey { key: String },
 
     #[snafu(display("Failed to format translation key {key} with the args:\n{:?}", args))]
     LocalesFormatting {

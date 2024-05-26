@@ -49,4 +49,13 @@ pub enum ConfigPanelError {
         entity: String,
         filter_key: FilterKey,
     },
+
+    // mod.rs (ConfigPanel::to_compact/ConfigPanel::get_single)
+    // Python: ????
+    #[snafu(display("Invalid option type for option {option_id}: {option_type}"))]
+    OptionTypeWrong {
+        option_id: String,
+        option_type: String,
+        source: strum::ParseError,
+    },
 }

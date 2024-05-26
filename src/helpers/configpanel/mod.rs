@@ -106,13 +106,16 @@ impl ConfigPanel {
                 {
                     let saved_settings = self.saved_settings()?;
 
-                    // TODO: error for invalid option type in config panel
-                    let option_type = OptionType::from_str(&option.option_type).unwrap();
+                    let option_type = OptionType::from_str(&option.option_type).context(
+                        OptionTypeWrongSnafu {
+                            option_id: option_id.to_string(),
+                            option_type: option.option_type.to_string(),
+                        },
+                    )?;
                     let value = Self::value_or_default(&option_id, &option, &saved_settings);
-                    // TODO: error?
 
                     let value = Self::normalize(&option_type, value);
-                    // println!("{:?}", value);
+                    // TODO: is this always ok to unwrap?
                     return Ok(Value::try_from(value).unwrap());
                 }
             }
@@ -121,7 +124,7 @@ impl ConfigPanel {
             }
         }
 
-        // Not elegant but it works and the unwrap is safe because our IDs were extracted from an actual FilterKey
+        // UNWRAP NOTE: Not elegant but is safe because our IDs were extracted from an actual FilterKey
         let filter_key =
             FilterKey::from_str(&format!("{panel_id}.{section_id}.{option_id}")).unwrap();
 
@@ -140,15 +143,14 @@ impl ConfigPanel {
 
         match mode {
             GetMode::Classic => {
-                let classic_panel = self.to_compact().unwrap();
+                let classic_panel = self.to_compact()?;
 
                 let matching_filter_key: Table = classic_panel
                     .fields
                     .into_iter()
                     .filter_map(|(x, y)| {
                         if x.starts_with(&filter_str) {
-                            // TODO: this is a big ugly...
-                            Some((x, Value::Table(Table::try_from(y).unwrap())))
+                            Some((x, y.to_toml_value()))
                         } else {
                             None
                         }
@@ -216,10 +218,14 @@ impl ConfigPanel {
                     }
 
                     let value = Self::value_or_default(&option_id, &option, &saved_settings);
-                    // TODO: error for invalid option type in config panel
-                    let option_type = OptionType::from_str(&option.option_type).unwrap();
+
+                    let option_type = OptionType::from_str(&option.option_type).context(
+                        OptionTypeWrongSnafu {
+                            option_id: option_id.to_string(),
+                            option_type: option.option_type.to_string(),
+                        },
+                    )?;
                     let value = Self::humanize(&option_type, value);
-                    // println!("normalized: {:?}", value);
                     compact_container.fields.insert(
                         format!("{}.{}.{}", panel_id, section_id, option_id),
                         AppliedCompactValue::new(ask, Some(value)),
@@ -275,33 +281,33 @@ impl ConfigPanel {
         }
     }
 
+    // TODO: apparently we should do the same with help/name fields? Or is ask one of those?
+    // This algorithm should always find an ask value in the end... unless something is not clear?
     pub fn ask_i18n(&self, option_id: &str, option: &OptionToml) -> String {
-        let mut ask = None;
         if let Some(option_ask_table) = option.fields.get("ask").map(|x| x.as_table()).flatten() {
             // If the ask field is set, it's always a table containing different translations for this setting
             // See docs about _value_for_locale. In that case, we want to select the suitable translation,
             // or the first one that comes.
-            ask = Some(_value_for_locale(option_ask_table));
+            return _value_for_locale(option_ask_table);
         } else if let Some(i18n_key) = &self.container.i18n_key {
+            // If the translation key exists in the locale, use it... otherwise don't touch the ask field
             let option_i18n_key = format!("{}_{}", i18n_key, option_id);
-            // TODO: error
-            ask = Some(i18n::yunohost_no_context(&option_i18n_key).unwrap());
+            if let Ok(translation) = i18n::yunohost_no_context(&option_i18n_key) {
+                return translation;
+            }
         }
 
-        // TODO: Is this always true?
-        let ask = ask.expect(&format!(
-            "Woops, ask was empty for option id {:?}",
-            option_id
-        ));
-
-        return ask;
+        return option
+            .fields
+            .get("ask")
+            .map(|x| x.as_str())
+            .flatten()
+            .expect(&format!(
+                "Woops, ask was empty (or non-str) for option id {:?}",
+                option_id
+            ))
+            .to_string();
     }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Translation {
-    Str(String),
-    I18N(Map<String, String>),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -360,5 +366,12 @@ pub struct AppliedCompactValue {
 impl AppliedCompactValue {
     pub fn new(ask: String, value: Option<String>) -> Self {
         Self { ask, value }
+    }
+}
+
+impl AppliedCompactValue {
+    pub fn to_toml_value(&self) -> Value {
+        // UNWRAP NOTE: This struct is very straightforward so (de)serialization should not fail
+        Value::Table(Table::try_from(&self).unwrap())
     }
 }
