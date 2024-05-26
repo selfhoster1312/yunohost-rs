@@ -48,6 +48,10 @@ build_check() {
 		echo "cargo build failed. Exit"
 		stop_this_shit
 	fi
+	if ! RUSTDOCFLAGS="-D warnings" cargo doc --no-deps; then
+		echo "cargo doc failed. Exit"
+		stop_this_shit
+	fi
 }
 
 server_check() {
