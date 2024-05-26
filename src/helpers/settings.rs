@@ -2,7 +2,6 @@ use toml::Value;
 
 use std::str::FromStr;
 
-use crate::error::*;
 use crate::helpers::{
     configpanel::{error::ConfigPanelError, ConfigPanel, FilterKey, GetMode, SaveMode},
     legacy::*,
@@ -14,23 +13,27 @@ pub struct SettingsConfigPanel {
 }
 
 impl SettingsConfigPanel {
-    pub fn new() -> SettingsConfigPanel {
-        SettingsConfigPanel {
+    pub fn new() -> Result<SettingsConfigPanel, ConfigPanelError> {
+        Ok(SettingsConfigPanel {
             panel: ConfigPanel::new(
                 "settings",
                 "/usr/share/yunohost/config_global.toml".into(),
                 "/etc/yunohost/settings.yml".into(),
                 SaveMode::Diff,
-            ),
+            )?,
             _virtual_settings: vec![
                 "root_password",
                 "root_password_confirm",
                 "passwordless_sudo",
             ],
-        }
+        })
     }
 
-    pub fn get(&mut self, key: &SettingsFilterKey, mode: GetMode) -> Result<Value, Error> {
+    pub fn get(
+        &mut self,
+        key: &SettingsFilterKey,
+        mode: GetMode,
+    ) -> Result<Value, ConfigPanelError> {
         let key: FilterKey = key.clone().into();
         let result = self.panel.get(&key, mode)?;
 

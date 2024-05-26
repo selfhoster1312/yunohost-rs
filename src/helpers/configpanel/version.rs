@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use std::str::FromStr;
 
-use crate::error::*;
+use super::error::ConfigPanelError;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ConfigPanelVersion {
@@ -11,12 +11,12 @@ pub enum ConfigPanelVersion {
 }
 
 impl FromStr for ConfigPanelVersion {
-    type Err = Error;
+    type Err = ConfigPanelError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "1.0" => Ok(Self::V1_0),
-            _ => Err(Error::ConfigPanelConfigVersionWrongStr {
+            _ => Err(ConfigPanelError::ConfigPanelVersion {
                 version: s.to_string(),
             }),
         }
@@ -30,10 +30,12 @@ impl ConfigPanelVersion {
         }
     }
 
-    pub fn from_f64(version: f64) -> Result<Self, Error> {
+    pub fn from_f64(version: f64) -> Result<Self, ConfigPanelError> {
         match version {
             1.0 => Ok(Self::V1_0),
-            _ => Err(Error::ConfigPanelConfigVersionWrongFloat { version: version }),
+            _ => Err(ConfigPanelError::ConfigPanelVersion {
+                version: version.to_string(),
+            }),
         }
     }
 }

@@ -6,6 +6,7 @@
 use camino::{Utf8Path, Utf8PathBuf};
 use derive_deref::Deref;
 use file_owner::PathExt;
+use serde::Deserialize;
 use snafu::prelude::*;
 
 use std::fs;
@@ -286,6 +287,26 @@ impl StrPath {
         let target = std::fs::read_link(&self).context(PathReadLinkSnafu { path: self.clone() })?;
 
         Self::from_path(&target).context(PathReadLinkParseSnafu { link: self.clone() })
+    }
+
+    pub fn read_toml<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Error> {
+        let content = self
+            .read()
+            .context(PathTomlReadSnafu { path: self.clone() })?;
+        let value: T = toml::from_str(&content)
+            .context(TomlSnafu)
+            .context(PathTomlReadSnafu { path: self.clone() })?;
+        Ok(value)
+    }
+
+    pub fn read_yaml<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Error> {
+        let content = self
+            .read()
+            .context(PathYamlReadSnafu { path: self.clone() })?;
+        let value: T = serde_yaml_ng::from_str(&content)
+            .context(YamlSnafu)
+            .context(PathYamlReadSnafu { path: self.clone() })?;
+        Ok(value)
     }
 }
 

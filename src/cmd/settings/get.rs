@@ -1,4 +1,5 @@
 use clap::Parser;
+use snafu::prelude::*;
 
 use crate::{
     error::*,
@@ -38,9 +39,9 @@ impl SettingsGetCommand {
             GetMode::Classic
         };
 
-        let mut settings = SettingsConfigPanel::new();
-
-        output::exit_result_output(settings.get(&self.setting, mode));
+        let mut settings = SettingsConfigPanel::new().context(ConfigPanelSnafu)?;
+        let res = settings.get(&self.setting, mode).context(ConfigPanelSnafu);
+        output::exit_result_output(res);
 
         Ok(())
     }

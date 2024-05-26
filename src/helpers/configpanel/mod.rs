@@ -3,18 +3,18 @@ use toml::{Table, Value};
 
 use std::str::FromStr;
 
-use crate::error::*;
 use crate::helpers::{file::*, form::*, i18n::*};
 use crate::moulinette::i18n;
 
 pub mod error;
+use error::*;
 mod filter_key;
 pub use filter_key::FilterKey;
 mod version;
 pub use version::ConfigPanelVersion;
 
 // Alias to try different maps for performance benchmark
-pub type Map<K, V> = std::collections::BTreeMap<K, V>;
+type Map<K, V> = std::collections::BTreeMap<K, V>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GetMode {
@@ -52,19 +52,26 @@ impl ConfigPanel {
         config_path: StrPath,
         save_path: StrPath,
         save_mode: SaveMode,
-    ) -> ConfigPanel {
-        let container = ContainerToml::from_path(&config_path).unwrap();
-        ConfigPanel {
-            // TODO: we initialize empty config/values here but what about loading the config directly when Config::new()???
+    ) -> Result<ConfigPanel, ConfigPanelError> {
+        // Load the ConfigPanel configuration, eg. /usr/share/yunohost/config_global.toml
+        let container: ContainerToml =
+            config_path
+                .read_toml()
+                .context(ConfigPanelConfigReadSnafu {
+                    entity: entity.to_string(),
+                    path: config_path.clone(),
+                })?;
+
+        Ok(ConfigPanel {
             entity: entity.to_string(),
             _config_path: config_path.clone(),
             save_path: save_path.clone(),
             _save_mode: save_mode,
             container,
-        }
+        })
     }
 
-    pub fn get(&self, filter: &FilterKey, mode: GetMode) -> Result<Value, Error> {
+    pub fn get(&self, filter: &FilterKey, mode: GetMode) -> Result<Value, ConfigPanelError> {
         // Logic is different based on depth of filterkey
         match filter {
             FilterKey::Option(panel, section, option) => {
@@ -81,7 +88,7 @@ impl ConfigPanel {
         section_id: &String,
         option_id: &String,
         mode: GetMode,
-    ) -> Result<Value, Error> {
+    ) -> Result<Value, ConfigPanelError> {
         match mode {
             GetMode::Classic => {
                 if let Some(option) = self
@@ -114,34 +121,49 @@ impl ConfigPanel {
             }
         }
 
-        // TODO: error when key doesn't exist
-        unreachable!();
+        // Not elegant but it works and the unwrap is safe because our IDs were extracted from an actual FilterKey
+        let filter_key =
+            FilterKey::from_str(&format!("{panel_id}.{section_id}.{option_id}")).unwrap();
+
+        // The requested FilterKey was not found in the ConfigPanel, return an error
+        return Err(ConfigPanelError::FilterKeyNotFound {
+            entity: self.entity.to_string(),
+            filter_key,
+        });
     }
 
     /// Get an entire panel/section, like `security` or `security.webadmin`
     ///
     /// Here the values are humanized
-    pub fn get_multi(&self, filter: &FilterKey, mode: GetMode) -> Result<Value, Error> {
-        // TODO: So here if it's a single value we don't do the right thing....
-        let filter = filter.to_string();
+    pub fn get_multi(&self, filter: &FilterKey, mode: GetMode) -> Result<Value, ConfigPanelError> {
+        let filter_str = filter.to_string();
 
         match mode {
             GetMode::Classic => {
                 let classic_panel = self.to_compact().unwrap();
-                Ok(Value::Table(
-                    classic_panel
-                        .fields
-                        .into_iter()
-                        .filter_map(|(x, y)| {
-                            if x.starts_with(&filter) {
-                                // TODO: this is a big ugly...
-                                Some((x, Value::Table(Table::try_from(y).unwrap())))
-                            } else {
-                                None
-                            }
-                        })
-                        .collect(),
-                ))
+
+                let matching_filter_key: Table = classic_panel
+                    .fields
+                    .into_iter()
+                    .filter_map(|(x, y)| {
+                        if x.starts_with(&filter_str) {
+                            // TODO: this is a big ugly...
+                            Some((x, Value::Table(Table::try_from(y).unwrap())))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                if matching_filter_key.is_empty() {
+                    // The requested FilterKey was not found in the ConfigPanel, return an error
+                    return Err(ConfigPanelError::FilterKeyNotFound {
+                        entity: self.entity.to_string(),
+                        filter_key: filter.clone(),
+                    });
+                }
+
+                Ok(Value::Table(matching_filter_key))
             }
             _ => {
                 unimplemented!("only classic mode is supported");
@@ -149,16 +171,14 @@ impl ConfigPanel {
         }
     }
 
-    pub fn saved_settings(&self) -> Result<Map<String, Value>, Error> {
+    pub fn saved_settings(&self) -> Result<Map<String, Value>, ConfigPanelError> {
         let saved_settings: Map<String, Value> = if self.save_path.is_file() {
-            serde_yaml_ng::from_str(&self.save_path.read().context(
-                ConfigPanelReadSavePathSnafu {
+            self.save_path
+                .read_yaml()
+                .context(ConfigPanelSaveReadSnafu {
                     entity: self.entity.to_string(),
-                },
-            )?)
-            .context(ConfigPanelReadSavePathYamlSnafu {
-                entity: self.entity.to_string(),
-            })?
+                    path: self.save_path.clone(),
+                })?
         } else {
             Map::new()
         };
@@ -167,7 +187,7 @@ impl ConfigPanel {
     }
 
     /// The values are normalized/humanized for use in get_multi
-    pub fn to_compact(&self) -> Result<AppliedCompactContainer, Error> {
+    pub fn to_compact(&self) -> Result<AppliedCompactContainer, ConfigPanelError> {
         let saved_settings = self.saved_settings()?;
 
         let mut compact_container = AppliedCompactContainer::new();
@@ -291,13 +311,6 @@ pub struct ContainerToml {
     i18n_key: Option<String>,
     #[serde(flatten)]
     pub panels: Map<String, PanelToml>,
-}
-
-impl ContainerToml {
-    pub fn from_path(path: &StrPath) -> Result<Self, Error> {
-        // TODO: error management
-        Ok(toml::from_str(&path.read().unwrap()).unwrap())
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

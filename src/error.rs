@@ -9,6 +9,22 @@ use crate::helpers::file::StrPath;
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum Error {
+    // TODO: relocate
+    #[snafu(display("Failed to parse TOML from string"))]
+    Toml {
+        source: toml::de::Error,
+    },
+
+    #[snafu(display("Failed to parse YAML from string"))]
+    Yaml {
+        source: serde_yaml_ng::Error,
+    },
+
+    #[snafu(display("An error happened inside the config panel"))]
+    ConfigPanel {
+        source: helpers::configpanel::error::ConfigPanelError,
+    },
+
     // ===================
     // src/helpers/apt.rs
     // ===================
@@ -26,109 +42,6 @@ pub enum Error {
     },
 
     // ===================
-    // src/helpers/configpanel.rs
-    // ===================
-    #[snafu(display("An error happened when processing config panel {entity}"))]
-    ConfigPanel {
-        entity: String,
-        source: helpers::configpanel::error::ConfigPanelError,
-    },
-
-    //     fn get (ConfigPanel::get)
-    #[snafu(display("No config panel could be loaded"))]
-    ConfigNoPanel {
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    //     fn _get_config_panel (ConfigPanel::_get_config_panel)
-    ConfigPanelTooManySublevels { filter_key: String },
-
-    #[snafu(display("ConfigPanel::_get_config_panel cannot find config file: {path}"))]
-    ConfigPanelReadConfigNotPath { path: StrPath },
-
-    #[snafu(display("ConfigPanel::_get_config_panel: Option id {id} is a forbidden keyword."))]
-    ConfigPanelReadConfigForbiddenKeyword { id: String },
-
-    #[snafu(display("ConfigPanel::_get_config_panel: Option has no id?! See:\n{}", option))]
-    ConfigPanelReadConfigOptionNoId { option: toml::Value },
-
-    //     fn _get_raw_config (ConfigPanel::_get_raw_config)
-    #[snafu(display("ConfigPanel::_get_raw_config failed to read config for {}", entity))]
-    ConfigPanelReadConfigPath {
-        entity: String,
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    #[snafu(display(
-        "ConfigPanel::_get_raw_config failed to parse invalid TOML for {}",
-        entity
-    ))]
-    ConfigPanelReadConfigPathToml {
-        entity: String,
-        source: toml::de::Error,
-    },
-
-    //     fn _hydrate (ConfigPanel::_hydrate)
-    #[snafu(display(
-        "ConfigPanel::_hydrate: Question {id} should be initialized during install or upgrade"
-    ))]
-    ConfigPanelHydrateValueNotSet { id: String },
-
-    //     fn has_first_entry_in_toml_table_sub_tables
-    #[snafu(display(
-        "ConfigPanel::has_first_entry_in_toml_table_sub_tables: MALFORMED:\n{:#?}",
-        table
-    ))]
-    ConfigPanelMalformed { table: toml::Table },
-
-    //     fn from_config_panel_table (ConfigPanelVersion::from_config_panel_table)
-    #[snafu(display("No version field in config panel"))]
-    ConfigPanelConfigVersionMissing,
-
-    #[snafu(display("Unknown (float) version field in config panel: {version}"))]
-    ConfigPanelConfigVersionWrongFloat { version: f64 },
-
-    #[snafu(display("Unknown (str) version field in config panel: {version}"))]
-    ConfigPanelConfigVersionWrongStr { version: String },
-
-    #[snafu(display("Unknown type of version field in config panel: {value:?}"))]
-    ConfigPanelConfigVersionWrongType { value: toml::Value },
-
-    #[snafu(display(
-        "Failed to find valid config panel version for entity {entity} at path {path}"
-    ))]
-    ConfigPanelVersion {
-        entity: String,
-        path: Utf8PathBuf,
-
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    #[snafu(display("Unsupported version {} in config panel for entity {entity} at path {path}"))]
-    ConfigPanelVersionUnsupported {
-        entity: String,
-        version: helpers::configpanel::ConfigPanelVersion,
-        path: Utf8PathBuf,
-    },
-
-    //     _get_raw_settings (ConfigPanel::_get_raw_settings)
-    #[snafu(display("Config::_get_raw_settings failed to read config for {}", entity))]
-    ConfigPanelReadSavePath {
-        entity: String,
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    #[snafu(display("Config::_get_raw_settings failed to read config for {}", entity))]
-    ConfigPanelReadSavePathYaml {
-        entity: String,
-        source: serde_yaml_ng::Error,
-    },
-
-    // ===================
     // src/helpers/file.rs
     // ===================
     #[snafu(display("Failed to read ownership metadata for path: {path}"))]
@@ -142,7 +55,9 @@ pub enum Error {
         source: file_owner::FileOwnerError,
     },
     #[snafu(display("Failed to find username for owner of path: {path}"))]
-    PathOwnerNameNotFound { path: StrPath },
+    PathOwnerNameNotFound {
+        path: StrPath,
+    },
 
     #[snafu(display("Failed to set owner {owner} for path {path}"))]
     PathOwnerSet {
@@ -162,7 +77,9 @@ pub enum Error {
         source: file_owner::FileOwnerError,
     },
     #[snafu(display("Failed to find groupname for group of path: {path}"))]
-    PathGroupNameNotFound { path: StrPath },
+    PathGroupNameNotFound {
+        path: StrPath,
+    },
 
     #[snafu(display("Failed to set group {group} for path: {path}"))]
     PathGroupSet {
@@ -217,7 +134,10 @@ pub enum Error {
     },
 
     #[snafu(display("Cannot copy {path} to {dest} because it is not a directory!"))]
-    PathCopyToNonDir { path: StrPath, dest: StrPath },
+    PathCopyToNonDir {
+        path: StrPath,
+        dest: StrPath,
+    },
 
     #[snafu(display("Failed to copy {path} to {dest}."))]
     PathCopyFail {
@@ -269,10 +189,14 @@ pub enum Error {
     #[snafu(display(
         "Failed to parse path because it's not valid UTF-8. It's approximately: {path}"
     ))]
-    PathUnicode { path: String },
+    PathUnicode {
+        path: String,
+    },
 
     #[snafu(display("Failed to read_link on path because it's not a symlink: {path}"))]
-    PathReadLinkNotSymlink { path: StrPath },
+    PathReadLinkNotSymlink {
+        path: StrPath,
+    },
 
     #[snafu(display("Failed to read_link on path: {path}"))]
     PathReadLink {
@@ -283,6 +207,18 @@ pub enum Error {
     #[snafu(display("Failed to read link from {link} because the target is not valid UTF-8"))]
     PathReadLinkParse {
         link: StrPath,
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    PathTomlRead {
+        path: StrPath,
+        #[snafu(source(from(Error, Box::new)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    PathYamlRead {
+        path: StrPath,
         #[snafu(source(from(Error, Box::new)))]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
@@ -316,7 +252,9 @@ pub enum Error {
     },
 
     #[snafu(display("Utf8PathBuf::from_path_buf failed because path is not valid UTF8: {}", path.display()))]
-    InvalidUnicodePath { path: PathBuf },
+    InvalidUnicodePath {
+        path: PathBuf,
+    },
 
     //     fn glob
     #[snafu(display("glob invalid pattern: {}", pattern))]
@@ -326,7 +264,9 @@ pub enum Error {
     },
 
     #[snafu(display("glob invalid read: {}", source.path().display()))]
-    Glob { source: glob::GlobError },
+    Glob {
+        source: glob::GlobError,
+    },
 
     // ===================
     // src/helpers/ldap.rs
@@ -344,10 +284,14 @@ pub enum Error {
 
     //     fn add (YunohostGroup::add)
     #[snafu(display("YunohostGroup::add failed because group {name} already exists."))]
-    YunohostGroupExists { name: String },
+    YunohostGroupExists {
+        name: String,
+    },
 
     #[snafu(display("YunohostGroup::add failed because groupadd {name} failed."))]
-    YunohostGroupCreate { name: String },
+    YunohostGroupCreate {
+        name: String,
+    },
 
     // ===================
     // src/helpers/ldap.rs
@@ -362,11 +306,15 @@ pub enum Error {
 
     // TODO
     #[snafu(display("Failed to bind on the LDAP database"))]
-    LdapBind { source: ldap3::result::LdapError },
+    LdapBind {
+        source: ldap3::result::LdapError,
+    },
 
     // TODO
     #[snafu(display("Failed to search the LDAP database"))]
-    LdapSearch { source: ldap3::result::LdapError },
+    LdapSearch {
+        source: ldap3::result::LdapError,
+    },
 
     // TODO
     // #[snafu(display("No such user: {}", username.as_str()))]
@@ -377,7 +325,9 @@ pub enum Error {
     },
 
     #[snafu(display("Failed to lookup permission {name}"))]
-    LdapPermissionNotFound { name: String },
+    LdapPermissionNotFound {
+        name: String,
+    },
 
     // TODO
     #[snafu(display("Empty username provided for login"))]
@@ -471,7 +421,9 @@ pub enum Error {
 
     //     fn from_str (UserAttr::from_str)
     #[snafu(display("UserAttr: unknown user field: {}", field))]
-    LdapUserAttrUnknown { field: String },
+    LdapUserAttrUnknown {
+        field: String,
+    },
 
     #[snafu(display("UserAttr: cannot request user password from LDAP"))]
     LdapUserAttrNotPassword,
@@ -496,7 +448,9 @@ pub enum Error {
 
     //     fn translate (Translator::translate)
     #[snafu(display("Missing translation key: {key}"))]
-    LocalesMissingKey { key: String },
+    LocalesMissingKey {
+        key: String,
+    },
 
     #[snafu(display("Failed to format translation key {key} with the args:\n{:?}", args))]
     LocalesFormatting {
