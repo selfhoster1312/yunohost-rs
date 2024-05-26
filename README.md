@@ -90,6 +90,11 @@ OK                          OK (8.10s)   OK (0.03s)  yunohost user list --json
 OK                          OK (12.37s)  OK (0.04s)  yunohost user info --json test2
 ```
 
+To run the tests on your own Raspberry pi:
+
+- from bullseye or a distro with an equivalent glibc version
+- cross-compile and test directly with `./test.sh SERVER raspberrypi`
+
 ## Test something about the Python version
 
 It's complicated because it's all very interconnected. However, if you'd like to get a small subsystem, you can do something like this:
