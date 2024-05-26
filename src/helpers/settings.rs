@@ -3,7 +3,10 @@ use toml::Value;
 use std::str::FromStr;
 
 use crate::error::*;
-use crate::helpers::{configpanel::*, legacy::*};
+use crate::helpers::{
+    configpanel::{error::ConfigPanelError, ConfigPanel, FilterKey, GetMode, SaveMode},
+    legacy::*,
+};
 
 pub struct SettingsConfigPanel {
     panel: ConfigPanel,
@@ -62,12 +65,11 @@ impl std::fmt::Display for SettingsFilterKey {
 }
 
 impl FromStr for SettingsFilterKey {
-    type Err = Error;
+    type Err = ConfigPanelError;
 
-    fn from_str(s: &str) -> Result<Self, Error> {
-        // TODO: empty string is not a filter key... we'll use a proper type/semantic for list
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s == "" {
-            panic!();
+            return Err(ConfigPanelError::FilterKeyNone);
         }
 
         // Translate from legacy settings
@@ -85,8 +87,9 @@ impl FromStr for SettingsFilterKey {
                     None => Ok(Self::Section(panel, section)),
                     Some(option) => {
                         if parts.next().is_some() {
-                            // TODO: Too many parts.
-                            panic!();
+                            return Err(ConfigPanelError::FilterKeyTooDeep {
+                                filter_key: s.to_string(),
+                            });
                         }
 
                         let option = option.to_string();

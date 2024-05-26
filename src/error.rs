@@ -28,6 +28,12 @@ pub enum Error {
     // ===================
     // src/helpers/configpanel.rs
     // ===================
+    #[snafu(display("An error happened when processing config panel {entity}"))]
+    ConfigPanel {
+        entity: String,
+        source: helpers::configpanel::error::ConfigPanelError,
+    },
+
     //     fn get (ConfigPanel::get)
     #[snafu(display("No config panel could be loaded"))]
     ConfigNoPanel {
@@ -36,10 +42,6 @@ pub enum Error {
     },
 
     //     fn _get_config_panel (ConfigPanel::_get_config_panel)
-    #[snafu(display(
-        "ConfigPanel::_get_config_panel cannot have so many levels in filter_key: {}",
-        filter_key
-    ))]
     ConfigPanelTooManySublevels { filter_key: String },
 
     #[snafu(display("ConfigPanel::_get_config_panel cannot find config file: {path}"))]

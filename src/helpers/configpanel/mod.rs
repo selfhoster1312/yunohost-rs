@@ -7,62 +7,14 @@ use crate::error::*;
 use crate::helpers::{file::*, form::*, i18n::*};
 use crate::moulinette::i18n;
 
-pub mod version;
+pub mod error;
+mod filter_key;
+pub use filter_key::FilterKey;
+mod version;
 pub use version::ConfigPanelVersion;
 
 // Alias to try different maps for performance benchmark
 pub type Map<K, V> = std::collections::BTreeMap<K, V>;
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FilterKey {
-    Panel(String),
-    Section(String, String),
-    Option(String, String, String),
-}
-
-impl std::fmt::Display for FilterKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Panel(p) => write!(f, "{}", p),
-            Self::Section(p, s) => write!(f, "{}.{}", p, s),
-            Self::Option(p, s, o) => write!(f, "{}.{}.{}", p, s, o),
-        }
-    }
-}
-
-impl FromStr for FilterKey {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Error> {
-        // TODO: empty string is not a filter key... we'll use a proper type/semantic for list
-        if s == "" {
-            panic!();
-        }
-
-        let mut parts = s.split('.');
-
-        let panel = parts.next().unwrap().to_string();
-
-        match parts.next() {
-            None => Ok(Self::Panel(panel)),
-            Some(section) => {
-                let section = section.to_string();
-                match parts.next() {
-                    None => Ok(Self::Section(panel, section)),
-                    Some(option) => {
-                        if parts.next().is_some() {
-                            // TODO: Too many parts.
-                            panic!();
-                        }
-
-                        let option = option.to_string();
-                        Ok(Self::Option(panel, section, option))
-                    }
-                }
-            }
-        }
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GetMode {
