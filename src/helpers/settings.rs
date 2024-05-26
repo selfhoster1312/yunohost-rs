@@ -1,8 +1,9 @@
-// use snafu::prelude::*;
+use toml::Value;
+
+use std::str::FromStr;
 
 use crate::error::*;
-use crate::helpers::configpanel::*;
-use toml::Value;
+use crate::helpers::{configpanel::*, legacy::*};
 
 pub struct SettingsConfigPanel {
     panel: ConfigPanel,
@@ -26,25 +27,83 @@ impl SettingsConfigPanel {
         }
     }
 
-    pub fn get(&mut self, key: &str, mode: GetMode) -> Result<Value, Error> {
-        let result = self.panel.get(key, mode)?;
+    pub fn get(&mut self, key: &SettingsFilterKey, mode: GetMode) -> Result<Value, Error> {
+        let key: FilterKey = key.clone().into();
+        let result = self.panel.get(&key, mode)?;
 
-        match mode {
-            GetMode::Full => {
-                // TODO: add i18n help
-                unimplemented!("oh noes i18n");
+        if let Some(result_str) = result.as_str() {
+            if result_str == "True" {
+                return Ok(Value::Boolean(true));
+            } else if result_str == "False" {
+                return Ok(Value::Boolean(false));
             }
-            _ => {
-                if let Some(result_str) = result.as_str() {
-                    if result_str == "True" {
-                        return Ok(Value::Boolean(true));
-                    } else if result_str == "False" {
-                        return Ok(Value::Boolean(false));
+        }
+
+        return Ok(result);
+    }
+}
+
+/// This is a special [`FilterKey`] where legacy settings key are supported.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SettingsFilterKey {
+    Panel(String),
+    Section(String, String),
+    Option(String, String, String),
+}
+
+impl std::fmt::Display for SettingsFilterKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Panel(p) => write!(f, "{}", p),
+            Self::Section(p, s) => write!(f, "{}.{}", p, s),
+            Self::Option(p, s, o) => write!(f, "{}.{}.{}", p, s, o),
+        }
+    }
+}
+
+impl FromStr for SettingsFilterKey {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Error> {
+        // TODO: empty string is not a filter key... we'll use a proper type/semantic for list
+        if s == "" {
+            panic!();
+        }
+
+        // Translate from legacy settings
+        let s = translate_legacy_settings_to_configpanel_settings(s);
+
+        let mut parts = s.split('.');
+
+        let panel = parts.next().unwrap().to_string();
+
+        match parts.next() {
+            None => Ok(Self::Panel(panel)),
+            Some(section) => {
+                let section = section.to_string();
+                match parts.next() {
+                    None => Ok(Self::Section(panel, section)),
+                    Some(option) => {
+                        if parts.next().is_some() {
+                            // TODO: Too many parts.
+                            panic!();
+                        }
+
+                        let option = option.to_string();
+                        Ok(Self::Option(panel, section, option))
                     }
                 }
-
-                return Ok(result);
             }
+        }
+    }
+}
+
+impl From<SettingsFilterKey> for FilterKey {
+    fn from(sfk: SettingsFilterKey) -> FilterKey {
+        match sfk {
+            SettingsFilterKey::Panel(p) => FilterKey::Panel(p),
+            SettingsFilterKey::Section(p, s) => FilterKey::Section(p, s),
+            SettingsFilterKey::Option(p, s, o) => FilterKey::Option(p, s, o),
         }
     }
 }

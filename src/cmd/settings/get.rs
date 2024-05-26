@@ -2,7 +2,7 @@ use clap::Parser;
 
 use crate::{
     error::*,
-    helpers::{configpanel::*, legacy::*, output, settings::*},
+    helpers::{configpanel::*, output, settings::*},
 };
 
 #[derive(Clone, Debug, Parser)]
@@ -17,7 +17,7 @@ pub struct SettingsGetCommand {
     json: bool,
 
     #[arg()]
-    setting: String,
+    setting: SettingsFilterKey,
 }
 
 impl SettingsGetCommand {
@@ -40,9 +40,7 @@ impl SettingsGetCommand {
 
         let mut settings = SettingsConfigPanel::new();
 
-        let key = translate_legacy_settings_to_configpanel_settings(&self.setting);
-
-        output::exit_result_output(settings.get(key, mode));
+        output::exit_result_output(settings.get(&self.setting, mode));
 
         Ok(())
     }
