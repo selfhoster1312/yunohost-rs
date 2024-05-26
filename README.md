@@ -93,7 +93,14 @@ OK                          OK (12.37s)  OK (0.04s)  yunohost user info --json t
 To run the tests on your own Raspberry pi:
 
 - from bullseye or a distro with an equivalent glibc version
-- cross-compile and test directly with `./test.sh SERVER raspberrypi`
+- run the following script:
+```
+apt install curl gcc-arm-linux-gnueabi gcc git
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+rustup target add arm-unknown-linux-gnueabi
+```
+- cross-compile and test directly from this cloned repository with `./test.sh root@SERVER raspberrypi`, where you have public key access to the raspberry pi as root
 
 ## Test something about the Python version
 
