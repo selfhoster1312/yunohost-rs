@@ -6,6 +6,8 @@ use std::str::FromStr;
 use crate::helpers::{file::*, form::*, i18n::*};
 use crate::moulinette::i18n;
 
+mod classic;
+use classic::{AppliedClassicContainer, AppliedClassicValue};
 pub mod error;
 use error::*;
 mod filter_key;
@@ -14,7 +16,7 @@ mod version;
 pub use version::ConfigPanelVersion;
 
 // Alias to try different maps for performance benchmark
-type Map<K, V> = std::collections::BTreeMap<K, V>;
+pub(crate) type Map<K, V> = std::collections::BTreeMap<K, V>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GetMode {
@@ -189,10 +191,10 @@ impl ConfigPanel {
     }
 
     /// The values are normalized/humanized for use in get_multi
-    pub fn to_compact(&self) -> Result<AppliedCompactContainer, ConfigPanelError> {
+    pub fn to_compact(&self) -> Result<AppliedClassicContainer, ConfigPanelError> {
         let saved_settings = self.saved_settings()?;
 
-        let mut compact_container = AppliedCompactContainer::new();
+        let mut compact_container = AppliedClassicContainer::new();
 
         for (panel_id, panel) in &self.container.panels {
             for (section_id, section) in &panel.sections {
@@ -211,7 +213,7 @@ impl ConfigPanel {
                         if ALLOWED_EMPTY_TYPES.contains(&option_type) {
                             compact_container.fields.insert(
                                 format!("{}.{}.{}", panel_id, section_id, option_id),
-                                AppliedCompactValue::new(ask, None),
+                                AppliedClassicValue::new(ask, None),
                             );
                             continue;
                         }
@@ -228,7 +230,7 @@ impl ConfigPanel {
                     let value = Self::humanize(&option_type, value);
                     compact_container.fields.insert(
                         format!("{}.{}.{}", panel_id, section_id, option_id),
-                        AppliedCompactValue::new(ask, Some(value)),
+                        AppliedClassicValue::new(ask, Some(value)),
                     );
                 }
             }
@@ -340,38 +342,4 @@ pub struct OptionToml {
     default: Option<Value>,
     #[serde(flatten)]
     pub fields: Map<String, Value>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct AppliedCompactContainer {
-    #[serde(flatten)]
-    pub fields: Map<String, AppliedCompactValue>,
-}
-
-impl AppliedCompactContainer {
-    pub fn new() -> Self {
-        Self { fields: Map::new() }
-    }
-}
-
-/// Once we have applied settings and translated stuff, only ask/value remain in the compact view.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct AppliedCompactValue {
-    pub ask: String,
-    // TODO: why is everything always a string???
-    // Actually, for type="alert", we have a "ask" but no value
-    pub value: Option<String>,
-}
-
-impl AppliedCompactValue {
-    pub fn new(ask: String, value: Option<String>) -> Self {
-        Self { ask, value }
-    }
-}
-
-impl AppliedCompactValue {
-    pub fn to_toml_value(&self) -> Value {
-        // UNWRAP NOTE: This struct is very straightforward so (de)serialization should not fail
-        Value::Table(Table::try_from(&self).unwrap())
-    }
 }
