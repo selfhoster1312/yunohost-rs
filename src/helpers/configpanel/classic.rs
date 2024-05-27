@@ -1,4 +1,4 @@
-use toml::{Table, Value};
+use serde_json::Value;
 
 use super::Map;
 
@@ -20,6 +20,7 @@ pub struct AppliedClassicValue {
     pub ask: String,
     // TODO: why is everything always a string???
     // Actually, for type="alert", we have a "ask" but no value
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 
@@ -32,6 +33,6 @@ impl AppliedClassicValue {
 impl AppliedClassicValue {
     pub fn to_toml_value(&self) -> Value {
         // UNWRAP NOTE: This struct is very straightforward so (de)serialization should not fail
-        Value::Table(Table::try_from(&self).unwrap())
+        serde_json::to_value(&self).unwrap()
     }
 }

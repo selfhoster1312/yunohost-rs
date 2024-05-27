@@ -18,6 +18,36 @@ pub enum FilterKey {
     Option(String, String, String),
 }
 
+impl FilterKey {
+    pub fn matches_panel(&self, panel_id: &str) -> bool {
+        match self {
+            Self::Panel(panel) => panel_id == panel,
+            Self::Section(panel, _section) => panel_id == panel,
+            Self::Option(panel, _section, _option) => panel_id == panel,
+        }
+    }
+
+    // TODO: this could be more efficient by storing a single string for the filterkey, with indices...?
+    pub fn matches_section(&self, panel_id: &str, section_id: &str) -> bool {
+        match self {
+            Self::Panel(panel) => panel_id == panel,
+            Self::Section(panel, section) => panel_id == panel && section_id == section,
+            Self::Option(panel, section, _option) => panel_id == panel && section_id == section,
+        }
+    }
+
+    // TODO: this could be more efficient by storing a single string for the filterkey, with indices...?
+    pub fn matches_option(&self, panel_id: &str, section_id: &str, option_id: &str) -> bool {
+        match self {
+            Self::Panel(panel) => panel_id == panel,
+            Self::Section(panel, section) => panel_id == panel && section_id == section,
+            Self::Option(panel, section, option) => {
+                panel_id == panel && section_id == section && option_id == option
+            }
+        }
+    }
+}
+
 impl std::fmt::Display for FilterKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

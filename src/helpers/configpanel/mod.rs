@@ -1,13 +1,20 @@
+use serde_json::{Map as Table, Value};
 use snafu::prelude::*;
-use toml::{Table, Value};
 
 use std::str::FromStr;
 
 use crate::helpers::{file::*, form::*, i18n::*};
 use crate::moulinette::i18n;
 
+// Different GetMode
 mod classic;
 use classic::{AppliedClassicContainer, AppliedClassicValue};
+mod full;
+use full::{
+    AppliedAllowedEmptyOption, AppliedFullContainer, AppliedFullOption, AppliedFullPanel,
+    AppliedFullSection, MaybeEmptyOption,
+};
+
 pub mod error;
 use error::*;
 mod filter_key;
@@ -122,7 +129,7 @@ impl ConfigPanel {
                 }
             }
             _ => {
-                unimplemented!("only classic mode is supported");
+                unimplemented!();
             }
         }
 
@@ -145,9 +152,9 @@ impl ConfigPanel {
 
         match mode {
             GetMode::Classic => {
-                let classic_panel = self.to_compact()?;
+                let classic_panel = self.to_classic()?;
 
-                let matching_filter_key: Table = classic_panel
+                let matching_filter_key: Table<String, Value> = classic_panel
                     .fields
                     .into_iter()
                     .filter_map(|(x, y)| {
@@ -167,7 +174,11 @@ impl ConfigPanel {
                     });
                 }
 
-                Ok(Value::Table(matching_filter_key))
+                Ok(Value::Object(matching_filter_key))
+            }
+            GetMode::Full => {
+                let full_panel = self.to_full(filter)?;
+                Ok(serde_json::to_value(full_panel).unwrap())
             }
             _ => {
                 unimplemented!("only classic mode is supported");
@@ -190,11 +201,74 @@ impl ConfigPanel {
         Ok(saved_settings)
     }
 
-    /// The values are normalized/humanized for use in get_multi
-    pub fn to_compact(&self) -> Result<AppliedClassicContainer, ConfigPanelError> {
+    pub fn to_full(
+        &self,
+        filter_key: &FilterKey,
+    ) -> Result<AppliedFullContainer, ConfigPanelError> {
         let saved_settings = self.saved_settings()?;
 
-        let mut compact_container = AppliedClassicContainer::new();
+        // TODO: so is i18n_key not optional after all?
+        let mut full_container =
+            AppliedFullContainer::new(&self.container.i18n_key.clone().unwrap());
+
+        for (panel_id, panel) in &self.container.panels {
+            if !filter_key.matches_panel(panel_id) {
+                continue;
+            }
+
+            let mut full_panel = AppliedFullPanel::from_panel_with_id(panel, panel_id);
+
+            for (section_id, section) in &panel.sections {
+                if !filter_key.matches_section(panel_id, section_id) {
+                    continue;
+                }
+                let mut full_section =
+                    AppliedFullSection::from_section_with_id(&section, &section_id);
+
+                for (option_id, option) in &section.options {
+                    if !filter_key.matches_option(panel_id, section_id, option_id) {
+                        continue;
+                    }
+
+                    if let Ok(option_type) = OptionType::from_str(&option.option_type) {
+                        if ALLOWED_EMPTY_TYPES.contains(&option_type) {
+                            let alert_option = AppliedAllowedEmptyOption::from_option_with_id(
+                                &option,
+                                &option_id,
+                                self.container.i18n_key.as_ref(),
+                            );
+                            full_section
+                                .options
+                                .push(MaybeEmptyOption::NoValue(alert_option));
+                            continue;
+                        }
+                    }
+
+                    let full_option = AppliedFullOption::from_option_with_id(
+                        &option,
+                        &option_id,
+                        self.container.i18n_key.as_ref(),
+                        &saved_settings,
+                    );
+                    full_section
+                        .options
+                        .push(MaybeEmptyOption::SomeValue(full_option));
+                }
+
+                full_panel.sections.push(full_section);
+            }
+
+            full_container.panels.push(full_panel);
+        }
+
+        Ok(full_container)
+    }
+
+    /// The values are normalized/humanized for use in get_multi
+    pub fn to_classic(&self) -> Result<AppliedClassicContainer, ConfigPanelError> {
+        let saved_settings = self.saved_settings()?;
+
+        let mut classic_container = AppliedClassicContainer::new();
 
         for (panel_id, panel) in &self.container.panels {
             for (section_id, section) in &panel.sections {
@@ -205,13 +279,21 @@ impl ConfigPanel {
                     //     continue;
                     // }
 
-                    let ask = self.ask_i18n(&option_id, &option);
+                    let ask = field_i18n_single(
+                        "ask",
+                        &option_id,
+                        &option,
+                        self.container
+                            .i18n_key
+                            .as_ref()
+                            .map(|x| format!("{}_{}", x, option_id)),
+                    );
 
                     if let Ok(option_type) = OptionType::from_str(&option.option_type) {
                         // Apparently at least for alert we have the ask to insert, but no value...
                         // TODO: Is that true for other ALLOWED_EMPTY_TYPES?
                         if ALLOWED_EMPTY_TYPES.contains(&option_type) {
-                            compact_container.fields.insert(
+                            classic_container.fields.insert(
                                 format!("{}.{}.{}", panel_id, section_id, option_id),
                                 AppliedClassicValue::new(ask, None),
                             );
@@ -228,7 +310,7 @@ impl ConfigPanel {
                         },
                     )?;
                     let value = Self::humanize(&option_type, value);
-                    compact_container.fields.insert(
+                    classic_container.fields.insert(
                         format!("{}.{}.{}", panel_id, section_id, option_id),
                         AppliedClassicValue::new(ask, Some(value)),
                     );
@@ -236,7 +318,7 @@ impl ConfigPanel {
             }
         }
 
-        Ok(compact_container)
+        Ok(classic_container)
     }
 
     pub fn value_or_default<'a>(
@@ -248,7 +330,9 @@ impl ConfigPanel {
         // UNWRAP NOTE: Normally, we have previously skipped entries whose type don't have a default value
         saved_settings
             .get(option_id)
-            .unwrap_or(&option.default.as_ref().unwrap())
+            .unwrap_or(&option.default.as_ref().expect(&format!(
+                "OptionID {option_id} does not have default value, and does not have saved setting"
+            )))
     }
 
     pub fn humanize(option_type: &OptionType, val: &Value) -> String {
@@ -282,34 +366,6 @@ impl ConfigPanel {
             val.clone()
         }
     }
-
-    // TODO: apparently we should do the same with help/name fields? Or is ask one of those?
-    // This algorithm should always find an ask value in the end... unless something is not clear?
-    pub fn ask_i18n(&self, option_id: &str, option: &OptionToml) -> String {
-        if let Some(option_ask_table) = option.fields.get("ask").map(|x| x.as_table()).flatten() {
-            // If the ask field is set, it's always a table containing different translations for this setting
-            // See docs about _value_for_locale. In that case, we want to select the suitable translation,
-            // or the first one that comes.
-            return _value_for_locale(option_ask_table);
-        } else if let Some(i18n_key) = &self.container.i18n_key {
-            // If the translation key exists in the locale, use it... otherwise don't touch the ask field
-            let option_i18n_key = format!("{}_{}", i18n_key, option_id);
-            if let Ok(translation) = i18n::yunohost_no_context(&option_i18n_key) {
-                return translation;
-            }
-        }
-
-        return option
-            .fields
-            .get("ask")
-            .map(|x| x.as_str())
-            .flatten()
-            .expect(&format!(
-                "Woops, ask was empty (or non-str) for option id {:?}",
-                option_id
-            ))
-            .to_string();
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -331,15 +387,92 @@ pub struct PanelToml {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SectionToml {
     name: String,
+    optional: Option<bool>,
     #[serde(flatten)]
     pub options: Map<String, OptionToml>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct OptionToml {
+    optional: Option<bool>,
     #[serde(rename = "type")]
     option_type: String,
     default: Option<Value>,
     #[serde(flatten)]
     pub fields: Map<String, Value>,
+}
+
+/// Translate specific option field to the current locale.
+///
+/// First lookup if field `field` contains a table. For example:
+///
+/// ```
+/// ask:
+///   en: The question?
+///   fr: The question?
+/// ```
+///
+/// If so, use the current locale if possible, see [`_value_for_locale`].
+///
+/// Otherwise, lookup in Yunohost translations the key `CONTAINERID_OPTIONID`. For example,
+/// `global_settings_setting_nginx_compatibility_help`.
+///
+/// Otherwise, return the field value as is.
+///
+/// This is used for `help` field in full view. Returns None if none of those options is available.
+pub fn field_i18n_single_optional(
+    field: &str,
+    option: &OptionToml,
+    i18n_key: Option<String>,
+) -> Option<String> {
+    // if let Some(option_field_table) = option.fields.get(field).map(|x| x.as_table()).flatten() {
+    if let Some(option_field_table) = option.fields.get(field).map(|x| x.as_object()).flatten() {
+        // If the ask field is set, it's always a table containing different translations for this setting
+        // See docs about _value_for_locale. In that case, we want to select the suitable translation,
+        // or the first one that comes.
+        return Some(_value_for_locale(option_field_table));
+    } else if let Some(i18n_key) = i18n_key {
+        // If the translation key exists in the locale, use it... otherwise don't touch the ask field
+        if let Ok(translation) = i18n::yunohost_no_context(&i18n_key) {
+            return Some(translation);
+        }
+    }
+
+    return option
+        .fields
+        .get(field)
+        .map(|x| x.as_str())
+        .flatten()
+        .map(|x| x.to_string());
+}
+
+/// Translate specific option field to the current locale.
+///
+/// First lookup if field `field` contains a table. For example:
+///
+/// ```
+/// ask:
+///   en: The question?
+///   fr: The question?
+/// ```
+///
+/// If so, use the current locale if possible, see [`_value_for_locale`].
+///
+/// Otherwise, lookup in Yunohost translations the key `CONTAINERID_OPTIONID`. For example,
+/// `global_settings_setting_nginx_compatibility_help`.
+///
+/// Otherwise, return the field value as is.
+///
+/// This is used for `ask` field in classic/full view.
+///
+/// Panics if none of these options is available.
+pub fn field_i18n_single(
+    field: &str,
+    option_id: &str,
+    option: &OptionToml,
+    i18n_key: Option<String>,
+) -> String {
+    field_i18n_single_optional(field, option, i18n_key).expect(&format!(
+        "Woops, field {field} was empty (or non-str) for option id {option_id}"
+    ))
 }

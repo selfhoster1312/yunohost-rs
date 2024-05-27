@@ -1,4 +1,4 @@
-use toml::Table;
+use serde_json::{Map as Table, Value};
 
 use crate::moulinette::i18n;
 
@@ -9,7 +9,7 @@ use crate::moulinette::i18n;
 //
 // We try to find a value for the current locale, or the default locale
 // worst case we take the first entry
-pub fn _value_for_locale(values: &Table) -> String {
+pub fn _value_for_locale(values: &Table<String, Value>) -> String {
     // TODO: error condition
     let current_locale = i18n::locale_get().unwrap();
 

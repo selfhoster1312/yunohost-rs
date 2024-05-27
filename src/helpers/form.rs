@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use strum::{Display, EnumString};
-use toml::Value;
 
 #[derive(
     Copy, Clone, Debug, EnumString, Display, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord,
@@ -76,13 +76,13 @@ pub trait OptionTypeInterface {
     /// Whether the actual value should be hidden in output (eg. password/secret)
     fn hide_user_input_in_prompt(&self) -> bool;
     /// Normalization takes any toml::Value and turns it into a properly-typed Value.
-    /// This process happens when querying a single value via [`ConfigPanel::get_single`](crate::helpers::configpanel::ConfigPanel::get_single),
-    /// for example when requesting a specific option via a 2-dotted filter key.
+    /// This process happens in classic view when requesting a single entry.
     fn normalize(&self, val: &Value) -> Option<Value>;
     /// Humanization takes the normalized value and formats it for output.
-    /// This process happens when querying multiple values via [`ConfigPanel::get_multi`](crate::helpers::configpanel::ConfigPanel::get_multi),
-    /// for example when requesting an entire panel or section filter key.
+    /// This process happens in classic view when requesting multiple values in a broader filter key.
     fn humanize(&self, val: &Value) -> Option<String>;
+    /// Defines some extra fields to add to default values in full mode.
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>>;
 }
 
 pub struct DisplayTextOption;
@@ -96,6 +96,10 @@ impl OptionTypeInterface for DisplayTextOption {
     }
 
     fn humanize(&self, _val: &Value) -> Option<String> {
+        None
+    }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -113,6 +117,10 @@ impl OptionTypeInterface for MarkdownOption {
     fn humanize(&self, _val: &Value) -> Option<String> {
         None
     }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+        None
+    }
 }
 
 pub struct AlertOption;
@@ -126,6 +134,10 @@ impl OptionTypeInterface for AlertOption {
     }
 
     fn humanize(&self, _val: &Value) -> Option<String> {
+        None
+    }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -143,6 +155,10 @@ impl OptionTypeInterface for ButtonOption {
     fn humanize(&self, _val: &Value) -> Option<String> {
         None
     }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+        None
+    }
 }
 
 pub struct TextOption;
@@ -156,6 +172,10 @@ impl OptionTypeInterface for TextOption {
     }
 
     fn humanize(&self, _val: &Value) -> Option<String> {
+        None
+    }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -173,6 +193,10 @@ impl OptionTypeInterface for PasswordOption {
     fn humanize(&self, _val: &Value) -> Option<String> {
         None
     }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+        None
+    }
 }
 
 pub struct ColorOption;
@@ -188,6 +212,10 @@ impl OptionTypeInterface for ColorOption {
     fn humanize(&self, _val: &Value) -> Option<String> {
         None
     }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+        None
+    }
 }
 
 pub struct NumberOption;
@@ -201,10 +229,14 @@ impl OptionTypeInterface for NumberOption {
     }
 
     fn humanize(&self, val: &Value) -> Option<String> {
-        if let Some(n) = val.as_integer() {
+        if let Some(n) = val.as_u64() {
             return Some(n.to_string());
         }
         panic!();
+    }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+        None
     }
 }
 
@@ -232,15 +264,19 @@ impl OptionTypeInterface for BooleanOption {
         } else {
             panic!("THIS IS WRONG!");
         };
-        Some(Value::Integer(b))
+        Some(Value::Number(b.into()))
     }
 
     fn humanize(&self, val: &Value) -> Option<String> {
-        if self.normalize(val).unwrap().as_integer().unwrap() == 1 {
+        if self.normalize(val).unwrap().as_u64().unwrap() == 1 {
             Some("yes".to_string())
         } else {
             Some("no".to_string())
         }
+    }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+        None
     }
 }
 
@@ -255,6 +291,10 @@ impl OptionTypeInterface for DateOption {
     }
 
     fn humanize(&self, _val: &Value) -> Option<String> {
+        None
+    }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -272,6 +312,10 @@ impl OptionTypeInterface for TimeOption {
     fn humanize(&self, _val: &Value) -> Option<String> {
         None
     }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+        None
+    }
 }
 
 pub struct EmailOption;
@@ -285,6 +329,10 @@ impl OptionTypeInterface for EmailOption {
     }
 
     fn humanize(&self, _val: &Value) -> Option<String> {
+        None
+    }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -302,6 +350,10 @@ impl OptionTypeInterface for PathOption {
     fn humanize(&self, _val: &Value) -> Option<String> {
         None
     }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+        None
+    }
 }
 
 pub struct UrlOption;
@@ -315,6 +367,10 @@ impl OptionTypeInterface for UrlOption {
     }
 
     fn humanize(&self, _val: &Value) -> Option<String> {
+        None
+    }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -332,6 +388,10 @@ impl OptionTypeInterface for FileOption {
     fn humanize(&self, _val: &Value) -> Option<String> {
         None
     }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+        None
+    }
 }
 
 pub struct SelectOption;
@@ -345,6 +405,10 @@ impl OptionTypeInterface for SelectOption {
     }
 
     fn humanize(&self, _val: &Value) -> Option<String> {
+        None
+    }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -361,6 +425,10 @@ impl OptionTypeInterface for TagsOption {
 
     fn humanize(&self, _val: &Value) -> Option<String> {
         None
+    }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+        Some(vec![("choices".to_string(), Value::Null)])
     }
 }
 
@@ -389,6 +457,10 @@ impl OptionTypeInterface for DomainOption {
     fn humanize(&self, _val: &Value) -> Option<String> {
         None
     }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+        None
+    }
 }
 
 pub struct AppOption;
@@ -402,6 +474,10 @@ impl OptionTypeInterface for AppOption {
     }
 
     fn humanize(&self, _val: &Value) -> Option<String> {
+        None
+    }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -419,6 +495,10 @@ impl OptionTypeInterface for UserOption {
     fn humanize(&self, _val: &Value) -> Option<String> {
         None
     }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+        None
+    }
 }
 
 pub struct GroupOption;
@@ -432,6 +512,10 @@ impl OptionTypeInterface for GroupOption {
     }
 
     fn humanize(&self, _val: &Value) -> Option<String> {
+        None
+    }
+
+    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
         None
     }
 }

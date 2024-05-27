@@ -1,4 +1,4 @@
-use toml::Value;
+use serde_json::Value;
 
 use std::str::FromStr;
 
@@ -39,9 +39,9 @@ impl SettingsConfigPanel {
 
         if let Some(result_str) = result.as_str() {
             if result_str == "True" {
-                return Ok(Value::Boolean(true));
+                return Ok(Value::Bool(true));
             } else if result_str == "False" {
-                return Ok(Value::Boolean(false));
+                return Ok(Value::Bool(false));
             }
         }
 
