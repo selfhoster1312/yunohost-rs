@@ -20,7 +20,7 @@ startBench() {
 parsedOutput() {
   case "$1" in
     "json")
-      echo "$2" | jq --sort-keys 'walk(if type == "array" then sort else . end)'
+      echo "$2" | jq --sort-keys 'walk(if type == "array" then sort_by(if type == "object" and has ("id") then .id else . end) else . end)'
       ;;
     "yaml")
       echo "$2" | yq 'sort_keys(..)'
