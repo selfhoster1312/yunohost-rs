@@ -48,7 +48,7 @@ build_check() {
 		echo "cargo build failed. Exit"
 		stop_this_shit
 	fi
-	if ! RUSTDOCFLAGS="-D warnings" cargo doc --no-deps; then
+	if ! RUSTDOCFLAGS="-D warnings" cargo doc --target $ARCH --no-deps; then
 		echo "cargo doc failed. Exit"
 		stop_this_shit
 	fi
