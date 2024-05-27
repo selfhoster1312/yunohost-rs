@@ -65,6 +65,11 @@ server_check() {
 		stop_this_shit
 	fi
 
+	if ! $ssh "$1" rsync --version &>/dev/null; then
+		echo "Server "$1" does not have rsync! Please install it first!"
+		stop_this_shit
+	fi
+
 	if ! $ssh "$1" /usr/bin/time --version &>/dev/null; then
 		echo "Server "$1" does not have time! Please install it first!"
 		stop_this_shit
