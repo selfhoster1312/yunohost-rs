@@ -82,7 +82,7 @@ pub trait OptionTypeInterface {
     /// This process happens in classic view when requesting multiple values in a broader filter key.
     fn humanize(&self, val: &Value) -> Option<String>;
     /// Defines some extra fields to add to default values in full mode.
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>>;
+    fn full_extra_fields(&self, option_id: &str) -> Option<Vec<(String, Value)>>;
 }
 
 pub struct DisplayTextOption;
@@ -99,7 +99,7 @@ impl OptionTypeInterface for DisplayTextOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -118,7 +118,7 @@ impl OptionTypeInterface for MarkdownOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -137,7 +137,7 @@ impl OptionTypeInterface for AlertOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -156,7 +156,7 @@ impl OptionTypeInterface for ButtonOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -175,7 +175,7 @@ impl OptionTypeInterface for TextOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -194,7 +194,7 @@ impl OptionTypeInterface for PasswordOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -213,7 +213,7 @@ impl OptionTypeInterface for ColorOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -235,7 +235,7 @@ impl OptionTypeInterface for NumberOption {
         panic!();
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -275,7 +275,7 @@ impl OptionTypeInterface for BooleanOption {
         }
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -294,7 +294,7 @@ impl OptionTypeInterface for DateOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -313,7 +313,7 @@ impl OptionTypeInterface for TimeOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -332,7 +332,7 @@ impl OptionTypeInterface for EmailOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -351,7 +351,7 @@ impl OptionTypeInterface for PathOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -370,7 +370,7 @@ impl OptionTypeInterface for UrlOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -389,7 +389,7 @@ impl OptionTypeInterface for FileOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -408,8 +408,19 @@ impl OptionTypeInterface for SelectOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
-        None
+    fn full_extra_fields(&self, option_id: &str) -> Option<Vec<(String, Value)>> {
+        // TODO: actually read_dir the themes from /usr/share/ssowat/portal/assets/themes
+        // TODO: Probably no longer the case on bookworm
+        // `portal_theme` is a special case...
+        if option_id == "portal_theme" {
+            Some(vec![(
+                "choices".to_string(),
+                serde_json::to_value(vec!["unsplash", "vapor", "light", "default", "clouds"])
+                    .unwrap(),
+            )])
+        } else {
+            None
+        }
     }
 }
 
@@ -427,7 +438,7 @@ impl OptionTypeInterface for TagsOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         Some(vec![("choices".to_string(), Value::Null)])
     }
 }
@@ -458,7 +469,7 @@ impl OptionTypeInterface for DomainOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -477,7 +488,7 @@ impl OptionTypeInterface for AppOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -496,7 +507,7 @@ impl OptionTypeInterface for UserOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -515,7 +526,7 @@ impl OptionTypeInterface for GroupOption {
         None
     }
 
-    fn full_extra_fields(&self) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
         None
     }
 }

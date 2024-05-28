@@ -115,7 +115,7 @@ impl AppliedFullOption {
 
         // In full output, the OptionType may set additional defaults
         let fields = if let Ok(option_type) = OptionType::from_str(&option.option_type) {
-            if let Some(type_defaults) = option_type.to_option_type().full_extra_fields() {
+            if let Some(type_defaults) = option_type.to_option_type().full_extra_fields(id) {
                 let mut type_defaults = type_defaults.into_iter().collect::<Map<String, Value>>();
                 type_defaults.extend(option.fields.clone());
                 type_defaults
@@ -214,7 +214,7 @@ impl AppliedAllowedEmptyOption {
 
         // In full output, the OptionType may set additional defaults
         let fields = if let Ok(option_type) = OptionType::from_str(&option.option_type) {
-            if let Some(type_defaults) = option_type.to_option_type().full_extra_fields() {
+            if let Some(type_defaults) = option_type.to_option_type().full_extra_fields(&id) {
                 let mut type_defaults = type_defaults.into_iter().collect::<Map<String, Value>>();
                 type_defaults.extend(option.fields.clone());
                 type_defaults

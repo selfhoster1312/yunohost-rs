@@ -51,20 +51,20 @@ To run the integration test, give access for your machine's SSH key to a remote 
 ```
 Server kl.netlib.re is ready for tests
 __runner.sh hook.sh settings.sh tools.sh user.sh
-DIFF                        PYTHON      RUST                         COMMAND
-OK                          OK (0.14s)  OK (0.00s)                   yunohost hook list --json conf_regen
-OK                          OK (0.21s)  OK (0.00s)                   yunohost settings get --json security
-OK                          OK (0.17s)  OK (0.00s)                   yunohost settings get --full --json security
-OK                          OK (0.17s)  OK (0.00s)                   yunohost settings get --json security.webadmin
-OK                          OK (0.17s)  OK (0.00s)                   yunohost settings get --full --json security.webadmin
-OK                          OK (0.17s)  OK (0.00s)                   yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
-SKIP                        OK (0.17s)  ERROR - /tmp/tmp.HPHhwxS9kL  yunohost settings get --full --json security.webadmin.webadmin_allowlist_enabled
-OK                          OK (0.21s)  OK (0.00s)                   yunohost settings list --json
-DIFF - /tmp/tmp.5HFO8hm8bm  OK (0.20s)  OK (0.00s)                   yunohost settings list --full --json
-OK                          OK (0.27s)  OK (0.00s)                   yunohost tools regen-conf --list-pending --json
-DIFF - /tmp/tmp.MPeX6eCcy0  OK (0.27s)  OK (0.00s)                   yunohost tools regen-conf --list-pending --with-diff --json
-OK                          OK (0.18s)  OK (0.00s)                   yunohost user list --json
-OK                          OK (0.53s)  OK (0.00s)                   yunohost user info --json test2
+DIFF                        PYTHON      RUST        COMMAND
+OK                          OK (0.16s)  OK (0.00s)  yunohost hook list --json conf_regen
+OK                          OK (0.23s)  OK (0.00s)  yunohost settings get --json security
+OK                          OK (0.24s)  OK (0.00s)  yunohost settings get --full --json security
+OK                          OK (0.20s)  OK (0.00s)  yunohost settings get --json security.webadmin
+OK                          OK (0.20s)  OK (0.00s)  yunohost settings get --full --json security.webadmin
+OK                          OK (0.17s)  OK (0.00s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
+OK                          OK (0.17s)  OK (0.00s)  yunohost settings get --full --json security.webadmin.webadmin_allowlist_enabled
+OK                          OK (0.19s)  OK (0.00s)  yunohost settings list --json
+OK                          OK (0.17s)  OK (0.00s)  yunohost settings list --full --json
+OK                          OK (0.26s)  OK (0.00s)  yunohost tools regen-conf --list-pending --json
+DIFF - /tmp/tmp.DgrILXCJJF  OK (0.24s)  OK (0.00s)  yunohost tools regen-conf --list-pending --with-diff --json
+OK                          OK (0.21s)  OK (0.00s)  yunohost user list --json
+OK                          OK (0.55s)  OK (0.00s)  yunohost user info --json test2
 ```
 <!-- MAGICAL TEST END -->
 
