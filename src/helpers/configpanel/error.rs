@@ -59,3 +59,66 @@ pub enum ConfigPanelError {
         source: strum::ParseError,
     },
 }
+
+impl std::cmp::PartialEq for ConfigPanelError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Self::ConfigPanelVersion { version: v1 },
+                Self::ConfigPanelVersion { version: v2 },
+            ) => v1 == v2,
+            (
+                Self::ConfigPanelConfigRead {
+                    entity: entity1,
+                    path: path1,
+                    ..
+                },
+                Self::ConfigPanelConfigRead {
+                    entity: entity2,
+                    path: path2,
+                    ..
+                },
+            ) => entity1 == entity2 && path1 == path2,
+            (
+                Self::ConfigPanelSaveRead {
+                    entity: entity1,
+                    path: path1,
+                    ..
+                },
+                Self::ConfigPanelSaveRead {
+                    entity: entity2,
+                    path: path2,
+                    ..
+                },
+            ) => entity1 == entity2 && path1 == path2,
+            (
+                Self::FilterKeyTooDeep { filter_key: f1 },
+                Self::FilterKeyTooDeep { filter_key: f2 },
+            ) => f1 == f2,
+            (Self::FilterKeyNone, Self::FilterKeyNone) => true,
+            (
+                Self::FilterKeyNotFound {
+                    entity: entity1,
+                    filter_key: f1,
+                },
+                Self::FilterKeyNotFound {
+                    entity: entity2,
+                    filter_key: f2,
+                },
+            ) => entity1 == entity2 && f1 == f2,
+            (
+                Self::OptionTypeWrong {
+                    option_id: id1,
+                    option_type: t1,
+                    ..
+                },
+                Self::OptionTypeWrong {
+                    option_id: id2,
+                    option_type: t2,
+                    ..
+                },
+            ) => id1 == id2 && t1 == t2,
+            _ => false,
+        }
+    }
+}

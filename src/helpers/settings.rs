@@ -47,6 +47,10 @@ impl SettingsConfigPanel {
 
         return Ok(result);
     }
+
+    pub fn list(&mut self, mode: GetMode) -> Result<Value, ConfigPanelError> {
+        self.panel.list(mode)
+    }
 }
 
 /// This is a special [`FilterKey`] where legacy settings key are supported.

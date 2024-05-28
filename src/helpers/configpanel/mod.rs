@@ -1,4 +1,4 @@
-use serde_json::{Map as Table, Value};
+use serde_json::Value;
 use snafu::prelude::*;
 
 use std::str::FromStr;
@@ -17,6 +17,8 @@ use full::{
 
 pub mod error;
 use error::*;
+mod exclude_key;
+pub use exclude_key::ExcludeKey;
 mod filter_key;
 pub use filter_key::FilterKey;
 mod version;
@@ -86,7 +88,16 @@ impl ConfigPanel {
             FilterKey::Option(panel, section, option) => {
                 self.get_single(&panel, &section, &option, mode)
             }
-            _ => self.get_multi(filter, mode),
+            _ => self.get_multi(filter, mode, &ExcludeKey::Nothing),
+        }
+    }
+
+    pub fn list(&self, mode: GetMode) -> Result<Value, ConfigPanelError> {
+        // filter security.root_access... WHY?
+        let exclude = ExcludeKey::Section("security".to_string(), "root_access".to_string());
+        match mode {
+            GetMode::Full => self.get_multi(&FilterKey::Everything, mode, &exclude),
+            _ => self.get_multi(&FilterKey::Everything, mode, &exclude),
         }
     }
 
@@ -147,37 +158,19 @@ impl ConfigPanel {
     /// Get an entire panel/section, like `security` or `security.webadmin`
     ///
     /// Here the values are humanized
-    pub fn get_multi(&self, filter: &FilterKey, mode: GetMode) -> Result<Value, ConfigPanelError> {
-        let filter_str = filter.to_string();
-
+    pub fn get_multi(
+        &self,
+        filter: &FilterKey,
+        mode: GetMode,
+        exclude_key: &ExcludeKey,
+    ) -> Result<Value, ConfigPanelError> {
         match mode {
             GetMode::Classic => {
-                let classic_panel = self.to_classic()?;
-
-                let matching_filter_key: Table<String, Value> = classic_panel
-                    .fields
-                    .into_iter()
-                    .filter_map(|(x, y)| {
-                        if x.starts_with(&filter_str) {
-                            Some((x, y.to_toml_value()))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-
-                if matching_filter_key.is_empty() {
-                    // The requested FilterKey was not found in the ConfigPanel, return an error
-                    return Err(ConfigPanelError::FilterKeyNotFound {
-                        entity: self.entity.to_string(),
-                        filter_key: filter.clone(),
-                    });
-                }
-
-                Ok(Value::Object(matching_filter_key))
+                let classic_panel = self.to_classic(filter, exclude_key)?;
+                Ok(serde_json::to_value(classic_panel).unwrap())
             }
             GetMode::Full => {
-                let full_panel = self.to_full(filter)?;
+                let full_panel = self.to_full(filter, exclude_key)?;
                 Ok(serde_json::to_value(full_panel).unwrap())
             }
             _ => {
@@ -204,6 +197,7 @@ impl ConfigPanel {
     pub fn to_full(
         &self,
         filter_key: &FilterKey,
+        exclude_key: &ExcludeKey,
     ) -> Result<AppliedFullContainer, ConfigPanelError> {
         let saved_settings = self.saved_settings()?;
 
@@ -212,21 +206,25 @@ impl ConfigPanel {
             AppliedFullContainer::new(&self.container.i18n_key.clone().unwrap());
 
         for (panel_id, panel) in &self.container.panels {
-            if !filter_key.matches_panel(panel_id) {
+            if !filter_key.matches_panel(panel_id) || exclude_key.excludes_panel(panel_id) {
                 continue;
             }
 
             let mut full_panel = AppliedFullPanel::from_panel_with_id(panel, panel_id);
 
             for (section_id, section) in &panel.sections {
-                if !filter_key.matches_section(panel_id, section_id) {
+                if !filter_key.matches_section(panel_id, section_id)
+                    || exclude_key.excludes_section(panel_id, section_id)
+                {
                     continue;
                 }
                 let mut full_section =
                     AppliedFullSection::from_section_with_id(&section, &section_id);
 
                 for (option_id, option) in &section.options {
-                    if !filter_key.matches_option(panel_id, section_id, option_id) {
+                    if !filter_key.matches_option(panel_id, section_id, option_id)
+                        || exclude_key.excludes_option(panel_id, section_id, option_id)
+                    {
                         continue;
                     }
 
@@ -265,14 +263,34 @@ impl ConfigPanel {
     }
 
     /// The values are normalized/humanized for use in get_multi
-    pub fn to_classic(&self) -> Result<AppliedClassicContainer, ConfigPanelError> {
+    pub fn to_classic(
+        &self,
+        filter_key: &FilterKey,
+        exclude_key: &ExcludeKey,
+    ) -> Result<AppliedClassicContainer, ConfigPanelError> {
         let saved_settings = self.saved_settings()?;
 
         let mut classic_container = AppliedClassicContainer::new();
 
         for (panel_id, panel) in &self.container.panels {
+            if !filter_key.matches_panel(panel_id) || exclude_key.excludes_panel(panel_id) {
+                continue;
+            }
+
             for (section_id, section) in &panel.sections {
+                if !filter_key.matches_section(panel_id, section_id)
+                    || exclude_key.excludes_section(panel_id, section_id)
+                {
+                    continue;
+                }
+
                 for (option_id, option) in &section.options {
+                    if !filter_key.matches_option(panel_id, section_id, option_id)
+                        || exclude_key.excludes_option(panel_id, section_id, option_id)
+                    {
+                        continue;
+                    }
+
                     // Maybe we should skip this option because it doesn't have an actual value?
                     // if let Some(bind) = option.get("bind").map(|x| x.as_str()).flatten() {
                     //     // TODO: what is this?

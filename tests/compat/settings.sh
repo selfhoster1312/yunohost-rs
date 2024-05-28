@@ -13,3 +13,7 @@ benchPythonRust json "settings" get --full --json security.webadmin
 # Single option
 benchPythonRust json "settings" get --json security.webadmin.webadmin_allowlist_enabled
 benchPythonRust json "settings" get --full --json security.webadmin.webadmin_allowlist_enabled
+
+# All options
+benchPythonRust json "settings" list --json
+benchPythonRust json "settings" list --full --json
