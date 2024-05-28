@@ -95,10 +95,7 @@ impl ConfigPanel {
     pub fn list(&self, mode: GetMode) -> Result<Value, ConfigPanelError> {
         // filter security.root_access... WHY?
         let exclude = ExcludeKey::Section("security".to_string(), "root_access".to_string());
-        match mode {
-            GetMode::Full => self.get_multi(&FilterKey::Everything, mode, &exclude),
-            _ => self.get_multi(&FilterKey::Everything, mode, &exclude),
-        }
+        self.get_multi(&FilterKey::Everything, mode, &exclude)
     }
 
     /// Get a single entry like `security.webadmin.allowlist_enable`
@@ -109,6 +106,7 @@ impl ConfigPanel {
         option_id: &String,
         mode: GetMode,
     ) -> Result<Value, ConfigPanelError> {
+        // TODO: typed filter_key in function signature
         match mode {
             GetMode::Classic => {
                 if let Some(option) = self
@@ -140,7 +138,11 @@ impl ConfigPanel {
                 }
             }
             _ => {
-                unimplemented!();
+                let filter_key =
+                    FilterKey::from_str(&format!("{panel_id}.{section_id}.{option_id}")).unwrap();
+                let value = self.get_multi(&filter_key, mode, &ExcludeKey::Nothing)?;
+                // TODO: is this always ok to unwrap?
+                return Ok(Value::try_from(value).unwrap());
             }
         }
 
@@ -174,7 +176,7 @@ impl ConfigPanel {
                 Ok(serde_json::to_value(full_panel).unwrap())
             }
             _ => {
-                unimplemented!("only classic mode is supported");
+                unimplemented!("only classic/full mode is supported");
             }
         }
     }
