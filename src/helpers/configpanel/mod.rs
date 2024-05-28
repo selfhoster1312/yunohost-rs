@@ -10,10 +10,6 @@ use crate::moulinette::i18n;
 mod classic;
 use classic::{AppliedClassicContainer, AppliedClassicValue};
 mod full_bullseye;
-use full_bullseye::{
-    AppliedAllowedEmptyOption, AppliedFullContainer, AppliedFullOption, AppliedFullPanel,
-    AppliedFullSection, MaybeEmptyOption,
-};
 
 pub mod error;
 use error::*;
@@ -180,7 +176,11 @@ impl ConfigPanel {
                 // TODO: what do we do when running tests? Do we have global state that the test runner can override?
                 match DebianRelease::from_cmd().unwrap() {
                     DebianRelease::Bullseye => {
-                        let full_panel = self.to_full_bullseye(filter, exclude_key)?;
+                        let full_panel = full_bullseye::AppliedFullContainer::from_config_panel(
+                            &self,
+                            filter,
+                            exclude_key,
+                        )?;
                         Ok(serde_json::to_value(full_panel).unwrap())
                     }
                     DebianRelease::Bookworm => {
@@ -207,74 +207,6 @@ impl ConfigPanel {
         };
 
         Ok(saved_settings)
-    }
-
-    pub fn to_full_bullseye(
-        &self,
-        filter_key: &FilterKey,
-        exclude_key: &ExcludeKey,
-    ) -> Result<AppliedFullContainer, ConfigPanelError> {
-        let saved_settings = self.saved_settings()?;
-
-        // TODO: so is i18n_key not optional after all?
-        let mut full_container =
-            AppliedFullContainer::new(&self.container.i18n_key.clone().unwrap());
-
-        for (panel_id, panel) in &self.container.panels {
-            if !filter_key.matches_panel(panel_id) || exclude_key.excludes_panel(panel_id) {
-                continue;
-            }
-
-            let mut full_panel = AppliedFullPanel::from_panel_with_id(panel, panel_id);
-
-            for (section_id, section) in &panel.sections {
-                if !filter_key.matches_section(panel_id, section_id)
-                    || exclude_key.excludes_section(panel_id, section_id)
-                {
-                    continue;
-                }
-                let mut full_section =
-                    AppliedFullSection::from_section_with_id(&section, &section_id);
-
-                for (option_id, option) in &section.options {
-                    if !filter_key.matches_option(panel_id, section_id, option_id)
-                        || exclude_key.excludes_option(panel_id, section_id, option_id)
-                    {
-                        continue;
-                    }
-
-                    if let Ok(option_type) = OptionType::from_str(&option.option_type) {
-                        if ALLOWED_EMPTY_TYPES.contains(&option_type) {
-                            let alert_option = AppliedAllowedEmptyOption::from_option_with_id(
-                                &option,
-                                &option_id,
-                                self.container.i18n_key.as_ref(),
-                            );
-                            full_section
-                                .options
-                                .push(MaybeEmptyOption::NoValue(alert_option));
-                            continue;
-                        }
-                    }
-
-                    let full_option = AppliedFullOption::from_option_with_id(
-                        &option,
-                        &option_id,
-                        self.container.i18n_key.as_ref(),
-                        &saved_settings,
-                    );
-                    full_section
-                        .options
-                        .push(MaybeEmptyOption::SomeValue(full_option));
-                }
-
-                full_panel.sections.push(full_section);
-            }
-
-            full_container.panels.push(full_panel);
-        }
-
-        Ok(full_container)
     }
 
     /// The values are normalized/humanized for use in get_multi

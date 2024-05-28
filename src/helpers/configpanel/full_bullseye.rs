@@ -4,7 +4,8 @@ use std::str::FromStr;
 
 use super::{
     field_i18n_single, field_i18n_single_optional_bullseye_englishname, ApplyAction, ConfigPanel,
-    ConfigPanelVersion, EnglishName, Map, OptionToml, PanelToml, SectionToml,
+    ConfigPanelError, ConfigPanelVersion, EnglishName, ExcludeKey, FilterKey, Map, OptionToml,
+    PanelToml, SectionToml, ALLOWED_EMPTY_TYPES,
 };
 use crate::helpers::form::OptionType;
 
@@ -23,6 +24,73 @@ impl AppliedFullContainer {
             i18n_key: i18n_key.to_string(),
             panels: Vec::new(),
         }
+    }
+
+    pub fn from_config_panel(
+        cp: &ConfigPanel,
+        filter_key: &FilterKey,
+        exclude_key: &ExcludeKey,
+    ) -> Result<AppliedFullContainer, ConfigPanelError> {
+        let saved_settings = cp.saved_settings()?;
+
+        // TODO: so is i18n_key not optional after all?
+        let mut full_container = AppliedFullContainer::new(&cp.container.i18n_key.clone().unwrap());
+
+        for (panel_id, panel) in &cp.container.panels {
+            if !filter_key.matches_panel(panel_id) || exclude_key.excludes_panel(panel_id) {
+                continue;
+            }
+
+            let mut full_panel = AppliedFullPanel::from_panel_with_id(panel, panel_id);
+
+            for (section_id, section) in &panel.sections {
+                if !filter_key.matches_section(panel_id, section_id)
+                    || exclude_key.excludes_section(panel_id, section_id)
+                {
+                    continue;
+                }
+                let mut full_section =
+                    AppliedFullSection::from_section_with_id(&section, &section_id);
+
+                for (option_id, option) in &section.options {
+                    if !filter_key.matches_option(panel_id, section_id, option_id)
+                        || exclude_key.excludes_option(panel_id, section_id, option_id)
+                    {
+                        continue;
+                    }
+
+                    if let Ok(option_type) = OptionType::from_str(&option.option_type) {
+                        if ALLOWED_EMPTY_TYPES.contains(&option_type) {
+                            let alert_option = AppliedAllowedEmptyOption::from_option_with_id(
+                                &option,
+                                &option_id,
+                                cp.container.i18n_key.as_ref(),
+                            );
+                            full_section
+                                .options
+                                .push(MaybeEmptyOption::NoValue(alert_option));
+                            continue;
+                        }
+                    }
+
+                    let full_option = AppliedFullOption::from_option_with_id(
+                        &option,
+                        &option_id,
+                        cp.container.i18n_key.as_ref(),
+                        &saved_settings,
+                    );
+                    full_section
+                        .options
+                        .push(MaybeEmptyOption::SomeValue(full_option));
+                }
+
+                full_panel.sections.push(full_section);
+            }
+
+            full_container.panels.push(full_panel);
+        }
+
+        Ok(full_container)
     }
 }
 

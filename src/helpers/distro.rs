@@ -22,6 +22,7 @@ impl FromStr for DebianRelease {
 }
 
 impl DebianRelease {
+    // TODO: this is apparently super slow... just did +0.03s on settings get --full --json ????
     pub fn from_cmd() -> Result<Self, Error> {
         let output = cmd("lsb_release", vec!["-rs"]).unwrap();
         Self::from_str(&String::from_utf8_lossy(&output.stdout))
