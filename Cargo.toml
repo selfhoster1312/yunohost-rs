@@ -50,7 +50,7 @@ serde = { version = "1", features = [ "derive" ] }
 # JSON serialization/deserialization
 serde_json = { version = "1", features = [ "preserve_order" ] }
 # YAML serialization/deserialization
-serde_yaml_ng = "0.9"
+serde_yaml_ng = "0.10"
 # Serialize/Deserialize helper macros
 serde_with = "3.8"
 # Error handling and Result::context method
