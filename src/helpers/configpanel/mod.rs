@@ -8,7 +8,6 @@ use crate::moulinette::i18n;
 
 // Different GetMode
 mod classic;
-use classic::{AppliedClassicContainer, AppliedClassicValue};
 mod full_bullseye;
 
 pub mod error;
@@ -168,7 +167,8 @@ impl ConfigPanel {
     ) -> Result<Value, ConfigPanelError> {
         match mode {
             GetMode::Classic => {
-                let classic_panel = self.to_classic(filter, exclude_key)?;
+                let classic_panel =
+                    classic::AppliedClassicContainer::from_config_panel(self, filter, exclude_key)?;
                 Ok(serde_json::to_value(classic_panel).unwrap())
             }
             GetMode::Full => {
@@ -207,83 +207,6 @@ impl ConfigPanel {
         };
 
         Ok(saved_settings)
-    }
-
-    /// The values are normalized/humanized for use in get_multi
-    pub fn to_classic(
-        &self,
-        filter_key: &FilterKey,
-        exclude_key: &ExcludeKey,
-    ) -> Result<AppliedClassicContainer, ConfigPanelError> {
-        let saved_settings = self.saved_settings()?;
-
-        let mut classic_container = AppliedClassicContainer::new();
-
-        for (panel_id, panel) in &self.container.panels {
-            if !filter_key.matches_panel(panel_id) || exclude_key.excludes_panel(panel_id) {
-                continue;
-            }
-
-            for (section_id, section) in &panel.sections {
-                if !filter_key.matches_section(panel_id, section_id)
-                    || exclude_key.excludes_section(panel_id, section_id)
-                {
-                    continue;
-                }
-
-                for (option_id, option) in &section.options {
-                    if !filter_key.matches_option(panel_id, section_id, option_id)
-                        || exclude_key.excludes_option(panel_id, section_id, option_id)
-                    {
-                        continue;
-                    }
-
-                    // Maybe we should skip this option because it doesn't have an actual value?
-                    // if let Some(bind) = option.get("bind").map(|x| x.as_str()).flatten() {
-                    //     // TODO: what is this?
-                    //     continue;
-                    // }
-
-                    let ask = field_i18n_single(
-                        "ask",
-                        &option_id,
-                        &option,
-                        self.container
-                            .i18n_key
-                            .as_ref()
-                            .map(|x| format!("{}_{}", x, option_id)),
-                    );
-
-                    if let Ok(option_type) = OptionType::from_str(&option.option_type) {
-                        // Apparently at least for alert we have the ask to insert, but no value...
-                        // TODO: Is that true for other ALLOWED_EMPTY_TYPES?
-                        if ALLOWED_EMPTY_TYPES.contains(&option_type) {
-                            classic_container.fields.insert(
-                                format!("{}.{}.{}", panel_id, section_id, option_id),
-                                AppliedClassicValue::new(ask, None),
-                            );
-                            continue;
-                        }
-                    }
-
-                    let value = Self::value_or_default(&option_id, &option, &saved_settings);
-
-                    let option_type = OptionType::from_str(&option.option_type).context(
-                        OptionTypeWrongSnafu {
-                            option_id: option_id.to_string(),
-                            option_type: option.option_type.to_string(),
-                        },
-                    )?;
-                    let value = Self::humanize(&option_type, value);
-                    classic_container.fields.insert(
-                        format!("{}.{}.{}", panel_id, section_id, option_id),
-                        AppliedClassicValue::new(ask, Some(value)),
-                    );
-                }
-            }
-        }
-
-        Ok(classic_container)
     }
 
     pub fn value_or_default<'a>(
