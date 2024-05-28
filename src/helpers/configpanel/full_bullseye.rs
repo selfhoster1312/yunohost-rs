@@ -3,8 +3,8 @@ use serde_json::Value;
 use std::str::FromStr;
 
 use super::{
-    field_i18n_single, field_i18n_single_optional_bullseye_englishname, ConfigPanel,
-    ConfigPanelVersion, Map, OptionToml, PanelToml, SectionToml,
+    field_i18n_single, field_i18n_single_optional_bullseye_englishname, ApplyAction, ConfigPanel,
+    ConfigPanelVersion, EnglishName, Map, OptionToml, PanelToml, SectionToml,
 };
 use crate::helpers::form::OptionType;
 
@@ -152,37 +152,6 @@ impl AppliedFullOption {
             option_type: option.option_type.clone(),
             pattern: None,
             fields: fields,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
-pub struct ApplyAction {
-    apply: ApplyEnglishAction,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ApplyEnglishAction {
-    en: String,
-}
-
-impl Default for ApplyEnglishAction {
-    fn default() -> Self {
-        Self {
-            en: "Apply".to_string(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct EnglishName {
-    en: String,
-}
-
-impl EnglishName {
-    pub fn new(name: &str) -> Self {
-        Self {
-            en: name.to_string(),
         }
     }
 }

@@ -9,8 +9,8 @@ use crate::moulinette::i18n;
 // Different GetMode
 mod classic;
 use classic::{AppliedClassicContainer, AppliedClassicValue};
-mod full;
-use full::{
+mod full_bullseye;
+use full_bullseye::{
     AppliedAllowedEmptyOption, AppliedFullContainer, AppliedFullOption, AppliedFullPanel,
     AppliedFullSection, MaybeEmptyOption,
 };
@@ -529,9 +529,40 @@ pub fn field_i18n_single_optional_bullseye_englishname(
             // THIS IS THE WTF PART
             if x == "" {
                 // UNWRAP NOTE: safe unwrap
-                serde_json::to_value(full::EnglishName::new("")).unwrap()
+                serde_json::to_value(EnglishName::new("")).unwrap()
             } else {
                 Value::String(x.to_string())
             }
         });
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+pub struct ApplyAction {
+    apply: ApplyEnglishAction,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ApplyEnglishAction {
+    en: String,
+}
+
+impl Default for ApplyEnglishAction {
+    fn default() -> Self {
+        Self {
+            en: "Apply".to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct EnglishName {
+    en: String,
+}
+
+impl EnglishName {
+    pub fn new(name: &str) -> Self {
+        Self {
+            en: name.to_string(),
+        }
+    }
 }
