@@ -250,6 +250,14 @@ pub enum Error {
     Glob { source: glob::GlobError },
 
     // ===================
+    // src/helpers/distro.rs
+    // ===================
+    #[snafu(display(
+        "Your system version {version} is unsupported by Yunohost (output of lsb-release -rs)"
+    ))]
+    UnsupportedDebianRelease { version: String },
+
+    // ===================
     // src/helpers/ldap.rs
     // ===================
 

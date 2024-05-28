@@ -1,6 +1,7 @@
 pub mod apt;
 pub mod configpanel;
 pub mod credentials;
+pub mod distro;
 pub mod file;
 pub mod form;
 pub mod group;

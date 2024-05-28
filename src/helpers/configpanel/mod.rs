@@ -3,7 +3,7 @@ use snafu::prelude::*;
 
 use std::str::FromStr;
 
-use crate::helpers::{file::*, form::*, i18n::*};
+use crate::helpers::{distro::DebianRelease, file::*, form::*, i18n::*};
 use crate::moulinette::i18n;
 
 // Different GetMode
@@ -176,8 +176,17 @@ impl ConfigPanel {
                 Ok(serde_json::to_value(classic_panel).unwrap())
             }
             GetMode::Full => {
-                let full_panel = self.to_full(filter, exclude_key)?;
-                Ok(serde_json::to_value(full_panel).unwrap())
+                // So depending on Debian version we do something different...
+                // TODO: what do we do when running tests? Do we have global state that the test runner can override?
+                match DebianRelease::from_cmd().unwrap() {
+                    DebianRelease::Bullseye => {
+                        let full_panel = self.to_full_bullseye(filter, exclude_key)?;
+                        Ok(serde_json::to_value(full_panel).unwrap())
+                    }
+                    DebianRelease::Bookworm => {
+                        unimplemented!();
+                    }
+                }
             }
             _ => {
                 unimplemented!("only classic/full mode is supported");
@@ -200,7 +209,7 @@ impl ConfigPanel {
         Ok(saved_settings)
     }
 
-    pub fn to_full(
+    pub fn to_full_bullseye(
         &self,
         filter_key: &FilterKey,
         exclude_key: &ExcludeKey,
