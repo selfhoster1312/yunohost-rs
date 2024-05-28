@@ -92,8 +92,15 @@ impl ConfigPanel {
     }
 
     pub fn list(&self, mode: GetMode) -> Result<Value, ConfigPanelError> {
-        // filter security.root_access... WHY?
-        let exclude = ExcludeKey::Section("security".to_string(), "root_access".to_string());
+        // Seriously, different ExcludeKey based on GetMode?
+        let exclude = match mode {
+            GetMode::Classic => {
+                // filter security.root_access... WHY?
+                ExcludeKey::Section("security".to_string(), "root_access".to_string())
+            }
+            _ => ExcludeKey::Nothing,
+        };
+
         self.get_multi(&FilterKey::Everything, mode, &exclude)
     }
 
@@ -139,7 +146,7 @@ impl ConfigPanel {
             _ => {
                 let value = self.get_multi(&filter_key, mode, &ExcludeKey::Nothing)?;
                 // TODO: is this always ok to unwrap?
-                return Ok(Value::try_from(value).unwrap());
+                return Ok(serde_json::to_value(value).unwrap());
             }
         }
 
@@ -492,4 +499,39 @@ pub fn field_i18n_single(
     field_i18n_single_optional(field, option, i18n_key).expect(&format!(
         "Woops, field {field} was empty (or non-str) for option id {option_id}"
     ))
+}
+
+// TODO: should this even exist in bookworm?
+pub fn field_i18n_single_optional_bullseye_englishname(
+    field: &str,
+    option: &OptionToml,
+    i18n_key: Option<String>,
+) -> Option<Value> {
+    // if let Some(option_field_table) = option.fields.get(field).map(|x| x.as_table()).flatten() {
+    if let Some(option_field_table) = option.fields.get(field).map(|x| x.as_object()).flatten() {
+        // If the ask field is set, it's always a table containing different translations for this setting
+        // See docs about _value_for_locale. In that case, we want to select the suitable translation,
+        // or the first one that comes.
+        return Some(Value::String(_value_for_locale(option_field_table)));
+    } else if let Some(i18n_key) = i18n_key {
+        // If the translation key exists in the locale, use it... otherwise don't touch the ask field
+        if let Ok(translation) = i18n::yunohost_no_context(&i18n_key) {
+            return Some(Value::String(translation));
+        }
+    }
+
+    return option
+        .fields
+        .get(field)
+        .map(|x| x.as_str())
+        .flatten()
+        .map(|x| {
+            // THIS IS THE WTF PART
+            if x == "" {
+                // UNWRAP NOTE: safe unwrap
+                serde_json::to_value(full::EnglishName::new("")).unwrap()
+            } else {
+                Value::String(x.to_string())
+            }
+        });
 }

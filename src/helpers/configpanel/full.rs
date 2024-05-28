@@ -3,8 +3,8 @@ use serde_json::Value;
 use std::str::FromStr;
 
 use super::{
-    field_i18n_single, field_i18n_single_optional, ConfigPanel, ConfigPanelVersion, Map,
-    OptionToml, PanelToml, SectionToml,
+    field_i18n_single, field_i18n_single_optional_bullseye_englishname, ConfigPanel,
+    ConfigPanelVersion, Map, OptionToml, PanelToml, SectionToml,
 };
 use crate::helpers::form::OptionType;
 
@@ -74,9 +74,14 @@ impl AppliedFullSection {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AppliedFullOption {
+    #[serde(flatten)]
+    /// Extra options defined by the [`OptionType`].
+    // It's the first field in the struct because otherwise flattening those entries
+    // will override fields that have already been set with those inside the Map.
+    pub fields: Map<String, Value>,
     pub ask: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub help: Option<String>,
+    pub help: Option<Value>,
     pub id: String,
     pub name: String,
     pub optional: bool,
@@ -86,8 +91,6 @@ pub struct AppliedFullOption {
     #[serde(rename = "type")]
     pub option_type: String,
     pattern: Option<String>,
-    #[serde(flatten)]
-    pub fields: Map<String, Value>,
 }
 
 impl AppliedFullOption {
@@ -104,7 +107,7 @@ impl AppliedFullOption {
             container_i18n_key.map(|x| format!("{}_{}", x, id)),
         );
 
-        let help = field_i18n_single_optional(
+        let help = field_i18n_single_optional_bullseye_englishname(
             "help",
             option,
             container_i18n_key.map(|x| format!("{}_{}_help", x, id)),
