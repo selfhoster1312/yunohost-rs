@@ -82,13 +82,12 @@ impl ConfigPanel {
         })
     }
 
-    pub fn get(&self, filter: &FilterKey, mode: GetMode) -> Result<Value, ConfigPanelError> {
-        // Logic is different based on depth of filterkey
-        match filter {
-            FilterKey::Option(panel, section, option) => {
-                self.get_single(&panel, &section, &option, mode)
+    pub fn get(&self, filter_key: &FilterKey, mode: GetMode) -> Result<Value, ConfigPanelError> {
+        match filter_key {
+            FilterKey::Option(panel_id, section_id, option_id) => {
+                self.get_single(filter_key, &panel_id, &section_id, &option_id, mode)
             }
-            _ => self.get_multi(filter, mode, &ExcludeKey::Nothing),
+            _ => self.get_multi(filter_key, mode, &ExcludeKey::Nothing),
         }
     }
 
@@ -101,12 +100,12 @@ impl ConfigPanel {
     /// Get a single entry like `security.webadmin.allowlist_enable`
     pub fn get_single(
         &self,
+        filter_key: &FilterKey,
         panel_id: &String,
         section_id: &String,
         option_id: &String,
         mode: GetMode,
     ) -> Result<Value, ConfigPanelError> {
-        // TODO: typed filter_key in function signature
         match mode {
             GetMode::Classic => {
                 if let Some(option) = self
@@ -138,8 +137,6 @@ impl ConfigPanel {
                 }
             }
             _ => {
-                let filter_key =
-                    FilterKey::from_str(&format!("{panel_id}.{section_id}.{option_id}")).unwrap();
                 let value = self.get_multi(&filter_key, mode, &ExcludeKey::Nothing)?;
                 // TODO: is this always ok to unwrap?
                 return Ok(Value::try_from(value).unwrap());
