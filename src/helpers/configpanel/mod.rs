@@ -14,6 +14,8 @@ use crate::moulinette::i18n;
 
 // Different GetMode
 mod classic;
+mod export_bookworm;
+mod export_bullseye;
 mod full_bookworm;
 mod full_bullseye;
 
@@ -145,21 +147,21 @@ impl ConfigPanel {
                     return Ok(Value::try_from(value).unwrap());
                 }
             }
-            _ => {
+            GetMode::Export => {
+                let value = self.get_multi(&filter_key, mode, &ExcludeKey::Nothing)?;
+                return Ok(serde_json::to_value(value).unwrap());
+            }
+            GetMode::Full => {
                 let value = self.get_multi(&filter_key, mode, &ExcludeKey::Nothing)?;
                 // TODO: is this always ok to unwrap?
                 return Ok(serde_json::to_value(value).unwrap());
             }
         }
 
-        // UNWRAP NOTE: Not elegant but is safe because our IDs were extracted from an actual FilterKey
-        let filter_key =
-            FilterKey::from_str(&format!("{panel_id}.{section_id}.{option_id}")).unwrap();
-
         // The requested FilterKey was not found in the ConfigPanel, return an error
         return Err(ConfigPanelError::FilterKeyNotFound {
             entity: self.entity.to_string(),
-            filter_key,
+            filter_key: filter_key.clone(),
         });
     }
 
@@ -178,6 +180,24 @@ impl ConfigPanel {
                     classic::AppliedClassicContainer::from_config_panel(self, filter, exclude_key)?;
                 Ok(serde_json::to_value(classic_panel).unwrap())
             }
+            GetMode::Export => match debian_version().unwrap() {
+                DebianRelease::Bullseye => {
+                    let export_panel = export_bullseye::ExportBullseyeContainer::from_config_panel(
+                        self,
+                        filter,
+                        exclude_key,
+                    )?;
+                    Ok(serde_json::to_value(export_panel).unwrap())
+                }
+                DebianRelease::Bookworm => {
+                    let export_panel = export_bookworm::ExportBookwormContainer::from_config_panel(
+                        self,
+                        filter,
+                        exclude_key,
+                    )?;
+                    Ok(serde_json::to_value(export_panel).unwrap())
+                }
+            },
             GetMode::Full => {
                 // So depending on Debian version we do something different...
                 // TODO: what do we do when running tests? Do we have global state that the test runner can override?
@@ -229,9 +249,6 @@ impl ConfigPanel {
                         Ok(serde_json::to_value(full_panel).unwrap())
                     }
                 }
-            }
-            _ => {
-                unimplemented!("only classic/full mode is supported");
             }
         }
     }
