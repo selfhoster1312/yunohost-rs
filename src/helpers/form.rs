@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use strum::{Display, EnumString};
 
+use crate::helpers::distro::DebianRelease;
+
 #[derive(
     Copy, Clone, Debug, EnumString, Display, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord,
 )]
@@ -82,7 +84,12 @@ pub trait OptionTypeInterface {
     /// This process happens in classic view when requesting multiple values in a broader filter key.
     fn humanize(&self, val: &Value) -> Option<String>;
     /// Defines some extra fields to add to default values in full mode.
-    fn full_extra_fields(&self, option_id: &str) -> Option<Vec<(String, Value)>>;
+    /// The extra fields depend on Debian release
+    fn full_extra_fields(
+        &self,
+        option_id: &str,
+        release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>>;
 }
 
 pub struct DisplayTextOption;
@@ -99,7 +106,11 @@ impl OptionTypeInterface for DisplayTextOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -118,7 +129,11 @@ impl OptionTypeInterface for MarkdownOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -137,7 +152,11 @@ impl OptionTypeInterface for AlertOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -156,7 +175,11 @@ impl OptionTypeInterface for ButtonOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -167,15 +190,29 @@ impl OptionTypeInterface for TextOption {
         false
     }
 
-    fn normalize(&self, _val: &Value) -> Option<Value> {
-        None
+    fn normalize(&self, val: &Value) -> Option<Value> {
+        match DebianRelease::from_cmd().unwrap() {
+            DebianRelease::Bookworm => {
+                if let Some(s) = val.as_str() {
+                    if s == "" {
+                        return Some(Value::Null);
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
     }
 
     fn humanize(&self, _val: &Value) -> Option<String> {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -186,16 +223,33 @@ impl OptionTypeInterface for PasswordOption {
         true
     }
 
-    fn normalize(&self, _val: &Value) -> Option<Value> {
-        None
+    fn normalize(&self, val: &Value) -> Option<Value> {
+        match DebianRelease::from_cmd().unwrap() {
+            DebianRelease::Bookworm => {
+                if let Some(s) = val.as_str() {
+                    if s == "" {
+                        return Some(Value::Null);
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
     }
 
     fn humanize(&self, _val: &Value) -> Option<String> {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
-        None
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
+        match release {
+            DebianRelease::Bookworm => Some(vec![("redact".to_string(), Value::Bool(true))]),
+            _ => None,
+        }
     }
 }
 
@@ -213,7 +267,11 @@ impl OptionTypeInterface for ColorOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -235,7 +293,11 @@ impl OptionTypeInterface for NumberOption {
         panic!();
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -275,8 +337,18 @@ impl OptionTypeInterface for BooleanOption {
         }
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
-        None
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
+        match release {
+            DebianRelease::Bookworm => Some(vec![
+                ("yes".to_string(), Value::Number(1.into())),
+                ("no".to_string(), Value::Number(0.into())),
+            ]),
+            _ => None,
+        }
     }
 }
 
@@ -294,7 +366,11 @@ impl OptionTypeInterface for DateOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -313,7 +389,11 @@ impl OptionTypeInterface for TimeOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -332,7 +412,11 @@ impl OptionTypeInterface for EmailOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -351,7 +435,11 @@ impl OptionTypeInterface for PathOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -370,7 +458,11 @@ impl OptionTypeInterface for UrlOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -389,7 +481,11 @@ impl OptionTypeInterface for FileOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -408,7 +504,11 @@ impl OptionTypeInterface for SelectOption {
         None
     }
 
-    fn full_extra_fields(&self, option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         // TODO: actually read_dir the themes from /usr/share/ssowat/portal/assets/themes
         // TODO: Probably no longer the case on bookworm
         // `portal_theme` is a special case...
@@ -438,8 +538,15 @@ impl OptionTypeInterface for TagsOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
-        Some(vec![("choices".to_string(), Value::Null)])
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
+        match release {
+            DebianRelease::Bullseye => Some(vec![("choices".to_string(), Value::Null)]),
+            _ => None,
+        }
     }
 }
 
@@ -469,7 +576,11 @@ impl OptionTypeInterface for DomainOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -488,7 +599,11 @@ impl OptionTypeInterface for AppOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -507,7 +622,11 @@ impl OptionTypeInterface for UserOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }
@@ -526,7 +645,11 @@ impl OptionTypeInterface for GroupOption {
         None
     }
 
-    fn full_extra_fields(&self, _option_id: &str) -> Option<Vec<(String, Value)>> {
+    fn full_extra_fields(
+        &self,
+        _option_id: &str,
+        _release: DebianRelease,
+    ) -> Option<Vec<(String, Value)>> {
         None
     }
 }

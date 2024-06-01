@@ -3,24 +3,40 @@ use serde_json::Value;
 use std::str::FromStr;
 
 use super::{
-    field_i18n_single, field_i18n_single_optional_bullseye_englishname, ApplyAction,
-    BullseyePanelVersion, ConfigPanel, ConfigPanelError, EnglishName, ExcludeKey, FilterKey, Map,
-    OptionToml, PanelToml, SectionToml, ALLOWED_EMPTY_TYPES,
+    field_i18n_single, field_i18n_single_optional, version::BookwormPanelVersion, ApplyAction,
+    ConfigPanel, ConfigPanelError, ExcludeKey, FilterKey, Map, OptionToml, PanelToml, SectionToml,
+    ALLOWED_EMPTY_TYPES,
 };
 use crate::helpers::{distro::DebianRelease, form::OptionType};
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct BullseyeFullContainer {
-    pub version: BullseyePanelVersion,
-    #[serde(rename = "i18n")]
-    pub i18n_key: String,
-    pub panels: Vec<BullseyeFullPanel>,
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PanelMode {
+    Bash,
+    Python,
 }
 
-impl BullseyeFullContainer {
+impl std::fmt::Display for PanelMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bash => write!(f, "{}", "bash"),
+            Self::Python => write!(f, "{}", "python"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BookwormFullContainer {
+    pub version: BookwormPanelVersion,
+    #[serde(rename = "i18n")]
+    pub i18n_key: String,
+    pub panels: Vec<BookwormFullPanel>,
+}
+
+impl BookwormFullContainer {
     pub fn new(i18n_key: &str) -> Self {
         Self {
-            version: BullseyePanelVersion::V1_0,
+            version: BookwormPanelVersion(1),
             i18n_key: i18n_key.to_string(),
             panels: Vec::new(),
         }
@@ -41,7 +57,7 @@ impl BullseyeFullContainer {
                 continue;
             }
 
-            let mut full_panel = BullseyeFullPanel::from_panel_with_id(panel, panel_id);
+            let mut full_panel = BookwormFullPanel::from_panel_with_id(panel, panel_id);
 
             for (section_id, section) in &panel.sections {
                 if !filter_key.matches_section(panel_id, section_id)
@@ -50,7 +66,7 @@ impl BullseyeFullContainer {
                     continue;
                 }
                 let mut full_section =
-                    BullseyeFullSection::from_section_with_id(&section, &section_id);
+                    BookwormFullSection::from_section_with_id(&section, &section_id);
 
                 for (option_id, option) in &section.options {
                     if !filter_key.matches_option(panel_id, section_id, option_id)
@@ -68,12 +84,12 @@ impl BullseyeFullContainer {
                             );
                             full_section
                                 .options
-                                .push(MaybeEmptyBullseyeOption::NoValue(alert_option));
+                                .push(MaybeEmptyBookwormOption::NoValue(alert_option));
                             continue;
                         }
                     }
 
-                    let full_option = BullseyeFullOption::from_option_with_id(
+                    let full_option = BookwormFullOption::from_option_with_id(
                         &option,
                         &option_id,
                         cp.container.i18n_key.as_ref(),
@@ -81,7 +97,7 @@ impl BullseyeFullContainer {
                     );
                     full_section
                         .options
-                        .push(MaybeEmptyBullseyeOption::SomeValue(full_option));
+                        .push(MaybeEmptyBookwormOption::SomeValue(full_option));
                 }
 
                 full_panel.sections.push(full_section);
@@ -95,20 +111,20 @@ impl BullseyeFullContainer {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct BullseyeFullPanel {
+pub struct BookwormFullPanel {
     pub actions: ApplyAction,
     pub id: String,
-    pub name: EnglishName,
-    pub sections: Vec<BullseyeFullSection>,
+    pub name: String,
+    pub sections: Vec<BookwormFullSection>,
     pub services: Vec<String>,
 }
 
-impl BullseyeFullPanel {
-    pub fn from_panel_with_id(panel: &PanelToml, id: &str) -> BullseyeFullPanel {
-        BullseyeFullPanel {
+impl BookwormFullPanel {
+    pub fn from_panel_with_id(panel: &PanelToml, id: &str) -> BookwormFullPanel {
+        BookwormFullPanel {
             actions: ApplyAction::default(),
             id: id.to_string(),
-            name: EnglishName::new(&panel.name),
+            name: panel.name.clone(),
             sections: Vec::new(),
             services: Vec::new(),
         }
@@ -116,32 +132,34 @@ impl BullseyeFullPanel {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct BullseyeFullSection {
+pub struct BookwormFullSection {
     pub id: String,
     #[serde(default)]
     pub is_action_section: bool,
     #[serde(default)]
     pub optional: bool,
-    pub name: EnglishName,
+    pub name: String,
     pub services: Vec<String>,
-    pub options: Vec<MaybeEmptyBullseyeOption>,
+    pub options: Vec<MaybeEmptyBookwormOption>,
+    pub visible: bool,
 }
 
-impl BullseyeFullSection {
-    pub fn from_section_with_id(section: &SectionToml, id: &str) -> BullseyeFullSection {
-        BullseyeFullSection {
+impl BookwormFullSection {
+    pub fn from_section_with_id(section: &SectionToml, id: &str) -> BookwormFullSection {
+        BookwormFullSection {
             id: id.to_string(),
             is_action_section: false,
             optional: section.optional.unwrap_or(true),
-            name: EnglishName::new(&section.name),
+            name: section.name.clone(),
             services: Vec::new(),
             options: Vec::new(),
+            visible: true,
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct BullseyeFullOption {
+pub struct BookwormFullOption {
     #[serde(flatten)]
     /// Extra options defined by the [`OptionType`].
     // It's the first field in the struct because otherwise flattening those entries
@@ -151,23 +169,37 @@ pub struct BullseyeFullOption {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub help: Option<Value>,
     pub id: String,
-    pub name: String,
+    // pub name: String,
     pub optional: bool,
-    pub current_value: Value,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Value,
+    #[serde(skip_serializing_if = "Self::value_none_or_null")]
     pub default: Option<Value>,
     #[serde(rename = "type")]
     pub option_type: String,
-    pattern: Option<String>,
+    pub visible: Value,
+    pub redact: bool,
+    // pattern: Option<String>,
+    pub readonly: bool,
+    pub mode: PanelMode,
 }
 
-impl BullseyeFullOption {
+impl BookwormFullOption {
+    pub fn value_none_or_null(value: &Option<Value>) -> bool {
+        match value {
+            Some(value) => match value {
+                Value::Null => true,
+                _ => false,
+            },
+            None => true,
+        }
+    }
+
     pub fn from_option_with_id(
         option: &OptionToml,
         id: &String,
         container_i18n_key: Option<&String>,
         saved_settings: &Map<String, Value>,
-    ) -> BullseyeFullOption {
+    ) -> BookwormFullOption {
         let ask = field_i18n_single(
             "ask",
             id,
@@ -175,17 +207,24 @@ impl BullseyeFullOption {
             container_i18n_key.map(|x| format!("{}_{}", x, id)),
         );
 
-        let help = field_i18n_single_optional_bullseye_englishname(
+        let help = field_i18n_single_optional(
             "help",
             option,
             container_i18n_key.map(|x| format!("{}_{}_help", x, id)),
-        );
+        )
+        .map(|help_i18n| {
+            if help_i18n == "" {
+                Value::Object(serde_json::Map::new())
+            } else {
+                Value::String(help_i18n)
+            }
+        });
 
         // In full output, the OptionType may set additional defaults
         let fields = if let Ok(option_type) = OptionType::from_str(&option.option_type) {
             if let Some(type_defaults) = option_type
                 .to_option_type()
-                .full_extra_fields(id, DebianRelease::Bullseye)
+                .full_extra_fields(id, DebianRelease::Bookworm)
             {
                 let mut type_defaults = type_defaults.into_iter().collect::<Map<String, Value>>();
                 type_defaults.extend(option.fields.clone());
@@ -198,31 +237,68 @@ impl BullseyeFullOption {
         };
 
         // Apparently when default is "" in bullseye branch, it's converted to null
-        let default = if let Some(val) = &option.default {
-            if let Some(str_val) = val.as_str() {
-                if str_val == "" {
-                    Some(Value::Null)
-                } else {
-                    Some(val.clone())
-                }
-            } else {
-                Some(val.clone())
-            }
-        } else {
+        // BUT ONLY IN SETTINGS LIST NOT IN SETTINGS GET?!!!
+        // So let's move this ugly logic to ConfigPanel::list... BUT WAIT WE STILL NEED A NONE TO SKIP SERIALIZATION???
+        let default = if let Some("") = option.default.as_ref().map(|x| x.as_str()).flatten() {
             None
+        } else {
+            option.default.clone()
         };
 
-        BullseyeFullOption {
+        // let default = if let Some(val) = &option.default {
+        //     if let Some(str_val) = val.as_str() {
+        //         // Why is root_password{,_confirm} special here?
+        //         if str_val == "" {
+        //             Some(Value::Null)
+        //         } else {
+        //             Some(val.clone())
+        //         }
+        //     } else {
+        //         Some(val.clone())
+        //     }
+        // } else {
+        //     None
+        // };
+
+        // let default = if let Some(val) = &option.default {
+        //     Some(val.clone())
+        // } else {
+        //     None
+        // };
+
+        let value = ConfigPanel::value_or_default(id, option, saved_settings).clone();
+        let value = if let Ok(option_type) = OptionType::from_str(&option.option_type) {
+            option_type
+                .to_option_type()
+                .normalize(&value)
+                .unwrap_or(value)
+        } else {
+            value
+        };
+
+        BookwormFullOption {
             ask,
             help,
             default,
-            current_value: ConfigPanel::value_or_default(id, option, saved_settings).clone(),
+            value,
             id: id.to_string(),
             optional: option.optional.unwrap_or(true),
-            name: id.to_string(),
+            // name: id.to_string(),
             option_type: option.option_type.clone(),
-            pattern: None,
+            // pattern: None,
+            redact: fields
+                .get("redact")
+                .map(|x| x.as_bool())
+                .flatten()
+                .unwrap_or(false),
+            visible: option
+                .fields
+                .get("visible")
+                .unwrap_or(&Value::Bool(true))
+                .clone(),
             fields: fields,
+            readonly: false,
+            mode: PanelMode::Bash,
         }
     }
 }
@@ -233,10 +309,13 @@ pub struct AppliedAllowedEmptyOption {
     pub fields: Map<String, Value>,
     pub ask: String,
     pub id: String,
-    pub name: String,
-    pub optional: bool,
+    // pub name: String,
+    readonly: bool,
+    // pub optional: bool,
     #[serde(rename = "type")]
     pub option_type: String,
+    pub visible: bool,
+    pub mode: PanelMode,
 }
 
 impl AppliedAllowedEmptyOption {
@@ -256,7 +335,7 @@ impl AppliedAllowedEmptyOption {
         let fields = if let Ok(option_type) = OptionType::from_str(&option.option_type) {
             if let Some(type_defaults) = option_type
                 .to_option_type()
-                .full_extra_fields(&id, DebianRelease::Bullseye)
+                .full_extra_fields(&id, DebianRelease::Bookworm)
             {
                 let mut type_defaults = type_defaults.into_iter().collect::<Map<String, Value>>();
                 type_defaults.extend(option.fields.clone());
@@ -271,17 +350,20 @@ impl AppliedAllowedEmptyOption {
         Self {
             ask,
             id: id.to_string(),
-            optional: option.optional.unwrap_or(true),
-            name: id.to_string(),
+            // optional: option.optional.unwrap_or(true),
+            // name: id.to_string(),
             option_type: option.option_type.clone(),
             fields,
+            readonly: true,
+            visible: true,
+            mode: PanelMode::Bash,
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum MaybeEmptyBullseyeOption {
+pub enum MaybeEmptyBookwormOption {
     NoValue(AppliedAllowedEmptyOption),
-    SomeValue(BullseyeFullOption),
+    SomeValue(BookwormFullOption),
 }

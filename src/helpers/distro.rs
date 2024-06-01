@@ -3,6 +3,7 @@ use std::str::FromStr;
 use crate::error::*;
 use crate::helpers::process::cmd;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DebianRelease {
     Bullseye,
     Bookworm,

@@ -5,12 +5,16 @@ use std::str::FromStr;
 use super::error::ConfigPanelError;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub enum ConfigPanelVersion {
+#[serde(transparent)]
+pub struct BookwormPanelVersion(pub u64);
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BullseyePanelVersion {
     #[serde(rename = "1.0")]
     V1_0,
 }
 
-impl FromStr for ConfigPanelVersion {
+impl FromStr for BullseyePanelVersion {
     type Err = ConfigPanelError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -23,7 +27,7 @@ impl FromStr for ConfigPanelVersion {
     }
 }
 
-impl ConfigPanelVersion {
+impl BullseyePanelVersion {
     pub fn to_f64(&self) -> f64 {
         match self {
             Self::V1_0 => 1.0,

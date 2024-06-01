@@ -3,11 +3,13 @@ use snafu::prelude::*;
 
 use std::str::FromStr;
 
+// use crate::helpers::{file::*, form::*, i18n::*};
 use crate::helpers::{distro::DebianRelease, file::*, form::*, i18n::*};
 use crate::moulinette::i18n;
 
 // Different GetMode
 mod classic;
+mod full_bookworm;
 mod full_bullseye;
 
 pub mod error;
@@ -17,7 +19,7 @@ pub use exclude_key::ExcludeKey;
 mod filter_key;
 pub use filter_key::FilterKey;
 mod version;
-pub use version::ConfigPanelVersion;
+pub use version::BullseyePanelVersion;
 
 // Alias to try different maps for performance benchmark
 pub(crate) type Map<K, V> = std::collections::BTreeMap<K, V>;
@@ -176,7 +178,7 @@ impl ConfigPanel {
                 // TODO: what do we do when running tests? Do we have global state that the test runner can override?
                 match DebianRelease::from_cmd().unwrap() {
                     DebianRelease::Bullseye => {
-                        let full_panel = full_bullseye::AppliedFullContainer::from_config_panel(
+                        let full_panel = full_bullseye::BullseyeFullContainer::from_config_panel(
                             &self,
                             filter,
                             exclude_key,
@@ -184,7 +186,42 @@ impl ConfigPanel {
                         Ok(serde_json::to_value(full_panel).unwrap())
                     }
                     DebianRelease::Bookworm => {
-                        unimplemented!();
+                        let mut full_panel =
+                            full_bookworm::BookwormFullContainer::from_config_panel(
+                                &self,
+                                filter,
+                                exclude_key,
+                            )?;
+
+                        // WAIT WTF IS THIS SHIT
+                        // BELOW IS UGLY SHIT! Because apparently in list mode passwords need to be replaced with "" instead of null
+                        // Or no wait is it all password type fields?
+                        for panel in &mut full_panel.panels {
+                            if panel.id != "security" {
+                                continue;
+                            }
+
+                            for section in &mut panel.sections {
+                                if section.id != "root_access" {
+                                    continue;
+                                }
+
+                                for option in &mut section.options {
+                                    match option {
+                                        full_bookworm::MaybeEmptyBookwormOption::SomeValue(
+                                            ref mut option,
+                                        ) => {
+                                            if option.option_type == "password" {
+                                                option.value = Value::String("".to_string());
+                                            }
+                                        }
+                                        _ => continue,
+                                    }
+                                }
+                            }
+                        }
+
+                        Ok(serde_json::to_value(full_panel).unwrap())
                     }
                 }
             }
@@ -258,7 +295,7 @@ impl ConfigPanel {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ContainerToml {
-    version: ConfigPanelVersion,
+    version: BullseyePanelVersion,
     #[serde(rename = "i18n")]
     i18n_key: Option<String>,
     #[serde(flatten)]
