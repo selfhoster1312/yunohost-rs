@@ -53,18 +53,21 @@ Server kl.netlib.re is ready for tests
 __runner.sh hook.sh settings.sh tools.sh user.sh
 DIFF                        PYTHON      RUST        COMMAND
 OK                          OK (0.17s)  OK (0.00s)  yunohost hook list --json conf_regen
-OK                          OK (0.21s)  OK (0.00s)  yunohost settings get --json security
+OK                          OK (0.18s)  OK (0.00s)  yunohost settings get --json security
 OK                          OK (0.17s)  OK (0.00s)  yunohost settings get --full --json security
-OK                          OK (0.17s)  OK (0.00s)  yunohost settings get --json security.webadmin
-OK                          OK (0.17s)  OK (0.00s)  yunohost settings get --full --json security.webadmin
+OK                          OK (0.17s)  OK (0.00s)  yunohost settings get --export --json security
+OK                          OK (0.20s)  OK (0.00s)  yunohost settings get --json security.webadmin
+OK                          OK (0.19s)  OK (0.00s)  yunohost settings get --full --json security.webadmin
+OK                          OK (0.18s)  OK (0.00s)  yunohost settings get --export --json security.webadmin
 OK                          OK (0.17s)  OK (0.00s)  yunohost settings get --json security.webadmin.webadmin_allowlist_enabled
-OK                          OK (0.17s)  OK (0.00s)  yunohost settings get --full --json security.webadmin.webadmin_allowlist_enabled
+OK                          OK (0.20s)  OK (0.00s)  yunohost settings get --full --json security.webadmin.webadmin_allowlist_enabled
+OK                          OK (0.17s)  OK (0.00s)  yunohost settings get --export --json security.webadmin.webadmin_allowlist_enabled
 OK                          OK (0.17s)  OK (0.00s)  yunohost settings list --json
-OK                          OK (0.18s)  OK (0.00s)  yunohost settings list --full --json
-OK                          OK (0.23s)  OK (0.00s)  yunohost tools regen-conf --list-pending --json
-DIFF - /tmp/tmp.NVBcqSYPf5  OK (0.24s)  OK (0.00s)  yunohost tools regen-conf --list-pending --with-diff --json
+OK                          OK (0.17s)  OK (0.00s)  yunohost settings list --full --json
+OK                          OK (0.24s)  OK (0.00s)  yunohost tools regen-conf --list-pending --json
+DIFF - /tmp/tmp.W0n6TCjHtL  OK (0.27s)  OK (0.00s)  yunohost tools regen-conf --list-pending --with-diff --json
 OK                          OK (0.18s)  OK (0.00s)  yunohost user list --json
-OK                          OK (0.52s)  OK (0.00s)  yunohost user info --json test2
+OK                          OK (0.51s)  OK (0.00s)  yunohost user info --json test2
 ```
 <!-- MAGICAL TEST END -->
 
