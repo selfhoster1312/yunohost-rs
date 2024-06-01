@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use strum::{Display, EnumString};
 
-use crate::helpers::distro::DebianRelease;
+use crate::helpers::distro::{debian_version, DebianRelease};
 
 #[derive(
     Copy, Clone, Debug, EnumString, Display, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord,
@@ -191,7 +191,7 @@ impl OptionTypeInterface for TextOption {
     }
 
     fn normalize(&self, val: &Value) -> Option<Value> {
-        match DebianRelease::from_cmd().unwrap() {
+        match debian_version().unwrap() {
             DebianRelease::Bookworm => {
                 if let Some(s) = val.as_str() {
                     if s == "" {
@@ -224,7 +224,7 @@ impl OptionTypeInterface for PasswordOption {
     }
 
     fn normalize(&self, val: &Value) -> Option<Value> {
-        match DebianRelease::from_cmd().unwrap() {
+        match debian_version().unwrap() {
             DebianRelease::Bookworm => {
                 if let Some(s) = val.as_str() {
                     if s == "" {

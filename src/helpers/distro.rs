@@ -1,7 +1,10 @@
 use std::str::FromStr;
+use std::sync::OnceLock;
 
 use crate::error::*;
-use crate::helpers::process::cmd;
+use crate::helpers::file::path;
+
+pub(crate) static DEBIAN_VERSION: OnceLock<DebianRelease> = OnceLock::new();
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DebianRelease {
@@ -23,9 +26,26 @@ impl FromStr for DebianRelease {
 }
 
 impl DebianRelease {
-    // TODO: this is apparently super slow... just did +0.03s on settings get --full --json ????
-    pub fn from_cmd() -> Result<Self, Error> {
-        let output = cmd("lsb_release", vec!["-rs"]).unwrap();
-        Self::from_str(&String::from_utf8_lossy(&output.stdout))
+    pub fn from_disk() -> Result<Self, Error> {
+        let p = path("/etc/os-release");
+        let s = p.read()?;
+        for line in s.lines() {
+            if line.starts_with("VERSION_ID=") {
+                return Self::from_str(
+                    line.trim_start_matches("VERSION_ID=\"")
+                        .trim_end_matches("\""),
+                );
+            }
+        }
+        unreachable!("malformed /etc/os-release file.. missing VERSION_ID");
+    }
+}
+
+pub fn debian_version() -> Result<&'static DebianRelease, Error> {
+    if let Some(version) = DEBIAN_VERSION.get() {
+        Ok(version)
+    } else {
+        let version = DebianRelease::from_disk()?;
+        Ok(DEBIAN_VERSION.get_or_init(|| version))
     }
 }

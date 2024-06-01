@@ -4,7 +4,12 @@ use snafu::prelude::*;
 use std::str::FromStr;
 
 // use crate::helpers::{file::*, form::*, i18n::*};
-use crate::helpers::{distro::DebianRelease, file::*, form::*, i18n::*};
+use crate::helpers::{
+    distro::{debian_version, DebianRelease},
+    file::*,
+    form::*,
+    i18n::*,
+};
 use crate::moulinette::i18n;
 
 // Different GetMode
@@ -176,7 +181,7 @@ impl ConfigPanel {
             GetMode::Full => {
                 // So depending on Debian version we do something different...
                 // TODO: what do we do when running tests? Do we have global state that the test runner can override?
-                match DebianRelease::from_cmd().unwrap() {
+                match debian_version().unwrap() {
                     DebianRelease::Bullseye => {
                         let full_panel = full_bullseye::BullseyeFullContainer::from_config_panel(
                             &self,
