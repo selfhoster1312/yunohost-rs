@@ -151,5 +151,5 @@ print(settings.get("", "classic"))
 - [x] Github Pages crate documentation
 - [x] Utf8Path (camino) integration for easier Path<->str interop
 - [ ] publish Debian repo on Github pages so people can test it without compiling
-- [x] rewrite moulinette.i18n for translations
+- [x] rewrite moulinette.i18n for translations, see [helpers/i18n](helpers/i18n/mod.rs)
 - [ ] rewrite moulinette actionsmap parser and integrate with real Yunohost

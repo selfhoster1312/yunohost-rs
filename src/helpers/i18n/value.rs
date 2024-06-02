@@ -1,6 +1,6 @@
 use serde_json::{Map, Value};
 
-use crate::moulinette::i18n;
+use super::{locale_get, DEFAULT_LOCALE_FALLBACK};
 
 /// Extract a single translation from a translation table.
 ///
@@ -17,7 +17,7 @@ use crate::moulinette::i18n;
 /// ```
 pub fn _value_for_locale(values: &Map<String, Value>) -> String {
     // TODO: error condition
-    let current_locale = i18n::locale_get().unwrap();
+    let current_locale = locale_get().unwrap();
 
     if values.contains_key(&current_locale) {
         return values
@@ -26,9 +26,9 @@ pub fn _value_for_locale(values: &Map<String, Value>) -> String {
             .as_str()
             .unwrap()
             .to_string();
-    } else if values.contains_key(i18n::DEFAULT_LOCALE_FALLBACK) {
+    } else if values.contains_key(DEFAULT_LOCALE_FALLBACK) {
         return values
-            .get(i18n::DEFAULT_LOCALE_FALLBACK)
+            .get(DEFAULT_LOCALE_FALLBACK)
             .unwrap()
             .as_str()
             .unwrap()
@@ -45,7 +45,7 @@ pub fn _value_for_locale(values: &Map<String, Value>) -> String {
 #[cfg(test)]
 mod tests {
     use super::_value_for_locale;
-    use crate::moulinette::i18n;
+    use crate::helpers::i18n;
     use serde_json::{Map, Value};
 
     #[test]

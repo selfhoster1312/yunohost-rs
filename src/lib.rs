@@ -22,5 +22,5 @@ pub mod cmd;
 pub mod error;
 /// High-level helpers to faciliate your life
 pub mod helpers;
-/// [moulinette](https://github.com/YunoHost/moulinette/) reimplementation for i18n
-pub mod moulinette;
+// /// [moulinette](https://github.com/YunoHost/moulinette/) reimplementation for i18n
+// pub mod moulinette;

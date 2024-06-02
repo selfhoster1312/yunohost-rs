@@ -8,9 +8,8 @@ use crate::helpers::{
     distro::{debian_version, DebianRelease},
     file::*,
     form::*,
-    i18n::*,
+    i18n,
 };
-use crate::moulinette::i18n;
 
 // Different GetMode
 mod classic;
@@ -359,7 +358,7 @@ pub struct OptionToml {
 ///   fr: The question?
 /// ```
 ///
-/// If so, use the current locale if possible, see [`_value_for_locale`].
+/// If so, use the current locale if possible, see [`_value_for_locale`](i18n::_value_for_locale).
 ///
 /// Otherwise, lookup in Yunohost translations the key `CONTAINERID_OPTIONID`. For example,
 /// `global_settings_setting_nginx_compatibility_help`.
@@ -377,7 +376,7 @@ pub fn field_i18n_single_optional(
         // If the ask field is set, it's always a table containing different translations for this setting
         // See docs about _value_for_locale. In that case, we want to select the suitable translation,
         // or the first one that comes.
-        return Some(_value_for_locale(option_field_table));
+        return Some(i18n::_value_for_locale(option_field_table));
     } else if let Some(i18n_key) = i18n_key {
         // If the translation key exists in the locale, use it... otherwise don't touch the ask field
         if let Ok(translation) = i18n::yunohost_no_context(&i18n_key) {
@@ -403,7 +402,7 @@ pub fn field_i18n_single_optional(
 ///   fr: The question?
 /// ```
 ///
-/// If so, use the current locale if possible, see [`_value_for_locale`].
+/// If so, use the current locale if possible, see [`_value_for_locale`](i18n::_value_for_locale).
 ///
 /// Otherwise, lookup in Yunohost translations the key `CONTAINERID_OPTIONID`. For example,
 /// `global_settings_setting_nginx_compatibility_help`.
@@ -435,7 +434,7 @@ pub fn field_i18n_single_optional_bullseye_englishname(
         // If the ask field is set, it's always a table containing different translations for this setting
         // See docs about _value_for_locale. In that case, we want to select the suitable translation,
         // or the first one that comes.
-        return Some(Value::String(_value_for_locale(option_field_table)));
+        return Some(Value::String(i18n::_value_for_locale(option_field_table)));
     } else if let Some(i18n_key) = i18n_key {
         // If the translation key exists in the locale, use it... otherwise don't touch the ask field
         if let Ok(translation) = i18n::yunohost_no_context(&i18n_key) {
