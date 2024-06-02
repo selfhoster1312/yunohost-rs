@@ -147,7 +147,7 @@ impl StrPath {
         Ok(())
     }
 
-    /// Two operations at the same time...
+    /// Set mode and ownership information at the same time.
     pub fn chown_and_mode(&self, mode: u32, user: &str, group: Option<&str>) -> Result<(), Error> {
         self.mode_set(mode)?;
         if let Some(group) = group {
@@ -180,6 +180,7 @@ impl StrPath {
         self.mode_set(mode)
     }
 
+    /// Recursive chmod operation.
     pub fn chmod_recurse(&self, mode: u32) -> Result<(), Error> {
         if self.is_dir() {
             // TODO: unwrap here needs readdir integration
@@ -195,6 +196,13 @@ impl StrPath {
         Ok(())
     }
 
+    /// Ensures the path exists, creating parent directories if necessary.
+    ///
+    /// Does not error when the folder already exists.
+    ///
+    /// Errors when:
+    /// - the path did not previously exist and failed to be created
+    /// - the path previously existed, but was not a directory? (TODO: is this true?)
     pub fn mkdir_p(&self) -> Result<(), Error> {
         if !self.is_dir() {
             fs::create_dir_all(self).context(PathMkdirPSnafu { path: self.clone() })?;
@@ -203,6 +211,11 @@ impl StrPath {
         Ok(())
     }
 
+    /// Copy to the `dest` folder, keeping the same file/dir name.
+    ///
+    /// Errors when:
+    /// - `dest` is not a directory
+    /// - copying to `dest` failed
     pub fn copy_to(&self, dest: &StrPath) -> Result<(), Error> {
         if !dest.is_dir() {
             return Err(Error::PathCopyToNonDir {
@@ -211,7 +224,8 @@ impl StrPath {
             });
         }
 
-        // TODO
+        // UNWRAP NOTE: This should be safe, unless the filename is '..'. TODO: Should this be an error case?
+        // See: https://doc.rust-lang.org/stable/std/path/struct.Path.html#method.file_name
         let file_name = self.file_name().unwrap();
         fs::copy(self, dest.join(file_name)).context(PathCopyFailSnafu {
             path: self.clone(),
@@ -221,10 +235,30 @@ impl StrPath {
         Ok(())
     }
 
+    /// Reads UTF-8 content to an owned string.
+    ///
+    /// Errors when:
+    /// - the path does not exist or is not a file
+    /// - the path is not readable
+    /// - file content is not UTF-8
     pub fn read(&self) -> Result<String, Error> {
         fs::read_to_string(self).context(PathReadSnafu { path: self.clone() })
     }
 
+    /// Reads UTF-8 lines to an owned list of strings.
+    ///
+    /// Example:
+    /// 
+    /// ```rust
+    /// for line in path("/tmp/res.output").read_lines()? {
+    ///     info!("{line}");
+    /// }
+    /// ```
+    ///
+    /// Errors when:
+    /// - the path does not exist or is not a file
+    /// - the path is not readable
+    /// - file content is not UTF-8
     pub fn read_lines(&self) -> Result<Vec<String>, Error> {
         Ok(self.read()?.lines().map(String::from).collect())
     }
@@ -279,6 +313,12 @@ impl StrPath {
         Self::from_path(&target).context(PathCanonicalizeParseSnafu { link: self.clone() })
     }
 
+    /// Follows a symlink, a single time.
+    ///
+    /// Does not follow symlinks recursively. Use [`StrPath::canonicalize`] for that.
+    ///
+    /// Errors when:
+    /// - `path` does not exist, or is not a symlink
     pub fn read_link(&self) -> Result<Self, Error> {
         if !self.is_symlink() {
             return Err(Error::PathReadLinkNotSymlink { path: self.clone() });
@@ -289,6 +329,11 @@ impl StrPath {
         Self::from_path(&target).context(PathReadLinkParseSnafu { link: self.clone() })
     }
 
+    /// Deserialize a TOML file directly to a struct.
+    ///
+    /// Errors when:
+    /// - [`StrPath::read`] fails
+    /// - `toml::from_str` fails
     pub fn read_toml<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Error> {
         let content = self
             .read()
@@ -299,6 +344,11 @@ impl StrPath {
         Ok(value)
     }
 
+    /// Deserialize a YAML file directly to a struct.
+    ///
+    /// Errors when:
+    /// - [`StrPath::read`] fails
+    /// - `toml::from_str` fails
     pub fn read_yaml<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Error> {
         let content = self
             .read()
@@ -330,8 +380,13 @@ impl AsRef<Path> for StrPath {
 
 /// Generate a new path from any valid UTF-8 string.
 ///
-/// This is a special class that contains high-level helpers that integrate well
-/// with other Yunohost helpers and errors. See [`StrPath`] for more.
+/// [`StrPath`] contains high-level helpers that integrate well
+/// with other Yunohost helpers and errors, ignoring weird non-UTF8 files.
+///
+/// Example:
+/// ```rust
+/// let p = path("/etc/yunohost");
+/// ```
 pub fn path<T: AsRef<str>>(path: T) -> StrPath {
     StrPath::from(path.as_ref())
 }
