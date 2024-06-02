@@ -248,7 +248,7 @@ impl StrPath {
     /// Reads UTF-8 lines to an owned list of strings.
     ///
     /// Example:
-    /// 
+    ///
     /// ```rust
     /// for line in path("/tmp/res.output").read_lines()? {
     ///     info!("{line}");
