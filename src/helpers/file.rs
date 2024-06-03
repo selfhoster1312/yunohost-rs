@@ -358,6 +358,21 @@ impl StrPath {
             .context(PathYamlReadSnafu { path: self.clone() })?;
         Ok(value)
     }
+
+    /// Deserialize a JSON file directly to a struct.
+    ///
+    /// Errors when:
+    /// - [`StrPath::read`] fails
+    /// - `serde_json::from_str` fails
+    pub fn read_json<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Error> {
+        let content = self
+            .read()
+            .context(PathJsonReadSnafu { path: self.clone() })?;
+        let value: T = serde_json::from_str(&content)
+            .context(JsonSnafu)
+            .context(PathJsonReadSnafu { path: self.clone() })?;
+        Ok(value)
+    }
 }
 
 impl<T: AsRef<str>> From<T> for StrPath {

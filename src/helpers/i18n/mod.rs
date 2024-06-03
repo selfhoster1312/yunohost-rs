@@ -16,8 +16,8 @@ use std::env;
 // ASYNC TODO: Replace std::sync::RwLock with tokio::sync::RwLock if we ever go async
 use std::sync::{OnceLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::error::*;
-
+pub(crate) mod error;
+use error::*;
 mod mocked_translator;
 use mocked_translator::MockedTranslator;
 mod translator;
@@ -51,12 +51,12 @@ pub(crate) trait TranslatorInterface: std::fmt::Debug + Send + Sync {
     fn set_locale(&mut self, locale: &str);
     fn get_locale(&self) -> String;
     fn key_exists(&self, key: &str) -> bool;
-    fn translate_no_context(&self, key: &str) -> Result<String, Error>;
+    fn translate_no_context(&self, key: &str) -> Result<String, I18NError>;
     fn translate_with_context(
         &self,
         key: &str,
         context: HashMap<String, String>,
-    ) -> Result<String, Error>;
+    ) -> Result<String, I18NError>;
 }
 
 pub(crate) fn get_system_locale() -> String {
@@ -66,7 +66,7 @@ pub(crate) fn get_system_locale() -> String {
 }
 
 pub(crate) fn moulinette_load(
-) -> Result<RwLockReadGuard<'static, Box<dyn TranslatorInterface>>, Error> {
+) -> Result<RwLockReadGuard<'static, Box<dyn TranslatorInterface>>, I18NError> {
     if let Some(translator) = MOULINETTE_GLOBAL_I18N.get() {
         Ok(translator.read().unwrap())
     } else {
@@ -79,7 +79,7 @@ pub(crate) fn moulinette_load(
 }
 
 pub(crate) fn moulinette_load_mut(
-) -> Result<RwLockWriteGuard<'static, Box<dyn TranslatorInterface>>, Error> {
+) -> Result<RwLockWriteGuard<'static, Box<dyn TranslatorInterface>>, I18NError> {
     if let Some(translator) = MOULINETTE_GLOBAL_I18N.get() {
         Ok(translator.write().unwrap())
     } else {
@@ -100,25 +100,28 @@ pub(crate) fn moulinette_load_mut(
 /// For example, for a translation key `user_not_found` containing the translation string:
 /// `User was not found: {username}`, `moulinette_context("user_not_found", hashmap!{"username": "toto"})`
 /// will produce the string `User was not found: toto`.
-pub fn moulinette_context(key: &str, context: HashMap<String, String>) -> Result<String, Error> {
+pub fn moulinette_context(
+    key: &str,
+    context: HashMap<String, String>,
+) -> Result<String, I18NError> {
     let translator = moulinette_load()?;
     translator.translate_with_context(key, context)
 }
 
 /// Gets a Moulinette translation without context (variable substitution)
-pub fn moulinette_no_context(key: &str) -> Result<String, Error> {
+pub fn moulinette_no_context(key: &str) -> Result<String, I18NError> {
     let translator = moulinette_load()?;
     translator.translate_no_context(key)
 }
 
 /// Checks whether a translation key exists in Moulinette strings
-pub fn moulinette_exists(key: &str) -> Result<bool, Error> {
+pub fn moulinette_exists(key: &str) -> Result<bool, I18NError> {
     let translator = moulinette_load()?;
     Ok(translator.key_exists(key))
 }
 
 pub(crate) fn yunohost_load(
-) -> Result<RwLockReadGuard<'static, Box<dyn TranslatorInterface>>, Error> {
+) -> Result<RwLockReadGuard<'static, Box<dyn TranslatorInterface>>, I18NError> {
     if let Some(translator) = YUNOHOST_GLOBAL_I18N.get() {
         Ok(translator.read().unwrap())
     } else {
@@ -131,7 +134,7 @@ pub(crate) fn yunohost_load(
 }
 
 pub(crate) fn yunohost_load_mut(
-) -> Result<RwLockWriteGuard<'static, Box<dyn TranslatorInterface>>, Error> {
+) -> Result<RwLockWriteGuard<'static, Box<dyn TranslatorInterface>>, I18NError> {
     if let Some(translator) = YUNOHOST_GLOBAL_I18N.get() {
         Ok(translator.write().unwrap())
     } else {
@@ -152,28 +155,28 @@ pub(crate) fn yunohost_load_mut(
 /// For example, for a translation key `user_not_found` containing the translation string:
 /// `User was not found: {username}`, `yunohost_context("user_not_found", hashmap!{"username": "toto"})`
 /// will produce the string `User was not found: toto`.
-pub fn yunohost_context(key: &str, context: HashMap<String, String>) -> Result<String, Error> {
+pub fn yunohost_context(key: &str, context: HashMap<String, String>) -> Result<String, I18NError> {
     yunohost_load()?.translate_with_context(key, context)
 }
 
 /// Gets a Yunohost translation without context (variable substitution)
-pub fn yunohost_no_context(key: &str) -> Result<String, Error> {
+pub fn yunohost_no_context(key: &str) -> Result<String, I18NError> {
     yunohost_load()?.translate_no_context(key)
 }
 
 /// Checks whether a translation key exists in Yunohost strings
-pub fn yunohost_exists(key: &str) -> Result<bool, Error> {
+pub fn yunohost_exists(key: &str) -> Result<bool, I18NError> {
     Ok(yunohost_load()?.key_exists(key))
 }
 
 /// Get the currently enabled locale
-pub fn locale_get() -> Result<String, Error> {
+pub fn locale_get() -> Result<String, I18NError> {
     Ok(yunohost_load()?.get_locale())
 }
 
 /// Set the enabled locale to a new value
 // TODO make this operation fallible so we never fail to find the locale when translating
-pub fn locale_set(locale: &str) -> Result<(), Error> {
+pub fn locale_set(locale: &str) -> Result<(), I18NError> {
     yunohost_load_mut()?.set_locale(locale);
     moulinette_load_mut()?.set_locale(locale);
     Ok(())

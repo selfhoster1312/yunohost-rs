@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use super::{TranslatorInterface, DEFAULT_LOCALE_FALLBACK};
-use crate::error::*;
+use super::{error::*, TranslatorInterface, DEFAULT_LOCALE_FALLBACK};
 
 /// A fake translator where all translation keys exist and the locale is always the default locale.
 #[derive(Debug)]
@@ -24,7 +23,7 @@ impl TranslatorInterface for MockedTranslator {
         true
     }
 
-    fn translate_no_context(&self, key: &str) -> Result<String, Error> {
+    fn translate_no_context(&self, key: &str) -> Result<String, I18NError> {
         Ok(key.to_string())
     }
 
@@ -32,7 +31,7 @@ impl TranslatorInterface for MockedTranslator {
         &self,
         key: &str,
         _context: HashMap<String, String>,
-    ) -> Result<String, Error> {
+    ) -> Result<String, I18NError> {
         Ok(key.to_string())
     }
 }

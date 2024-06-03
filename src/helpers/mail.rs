@@ -24,7 +24,11 @@ impl MailStorageUse {
         let p = path(format!("/var/mail/{user}/maildirsize"));
         if !p.is_file() {
             return Ok(Self {
-                limit: i18n::yunohost_no_context("unlimit")?,
+                limit: i18n::yunohost_no_context("unlimit")
+                    .context(I18NSnafu)
+                    .context(MailStorageLookupSnafu {
+                        user: user.to_string(),
+                    })?,
                 mail_use: "?".to_string(),
             });
         }
@@ -45,7 +49,11 @@ impl MailStorageUse {
         }
 
         let limit = if quota.starts_with("0") {
-            i18n::yunohost_no_context("unlimit")?
+            i18n::yunohost_no_context("unlimit")
+                .context(I18NSnafu)
+                .context(MailStorageLookupSnafu {
+                    user: user.to_string(),
+                })?
         } else {
             quota.to_string()
         };
@@ -61,7 +69,11 @@ impl MailStorageUse {
 
     pub fn from_doveadm(user: &str, quota: &str) -> Result<Self, Error> {
         let limit = if quota.starts_with("0") {
-            i18n::yunohost_no_context("unlimit")?
+            i18n::yunohost_no_context("unlimit")
+                .context(I18NSnafu)
+                .context(MailStorageLookupSnafu {
+                    user: user.to_string(),
+                })?
         } else {
             quota.to_string()
         };
@@ -71,11 +83,11 @@ impl MailStorageUse {
         if !SystemCtl::is_active("dovecot") {
             warn!(
                 "{}",
-                i18n::yunohost_no_context("mailbox_used_space_dovecot_down").context(
-                    MailStorageLookupSnafu {
+                i18n::yunohost_no_context("mailbox_used_space_dovecot_down")
+                    .context(I18NSnafu)
+                    .context(MailStorageLookupSnafu {
                         user: user.to_string(),
-                    }
-                )?
+                    })?
             );
         } else if !YunohostPermission::get("mail.main")
             .context(MailStorageLookupSnafu {
@@ -90,6 +102,7 @@ impl MailStorageUse {
                     "mailbox_disabled",
                     hashmap!("user".to_string() => user.to_string())
                 )
+                .context(I18NSnafu)
                 .context(MailStorageLookupSnafu {
                     user: user.to_string(),
                 })?

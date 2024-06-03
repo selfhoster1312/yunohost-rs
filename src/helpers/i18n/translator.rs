@@ -5,10 +5,10 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use super::{
-    get_system_locale, MaybeTranslation, RwLock, Translation, TranslatorInterface,
+    error::*, get_system_locale, MaybeTranslation, RwLock, Translation, TranslatorInterface,
     DEFAULT_LOCALE_FALLBACK,
 };
-use crate::{error::*, helpers::file::*};
+use crate::helpers::file::*;
 
 #[derive(Debug)]
 pub(crate) struct Translator {
@@ -20,7 +20,7 @@ impl Translator {
     pub(crate) fn init(
         state: &'static OnceLock<RwLock<Box<dyn TranslatorInterface>>>,
         locales_dir: &Utf8Path,
-    ) -> Result<&'static RwLock<Box<dyn TranslatorInterface>>, Error> {
+    ) -> Result<&'static RwLock<Box<dyn TranslatorInterface>>, I18NError> {
         let locale = get_system_locale();
 
         if let Some(translator) = state.get() {
@@ -31,7 +31,7 @@ impl Translator {
         }
     }
 
-    pub fn new(locales_dir: &Utf8Path, default_locale: &str) -> Result<Translator, Error> {
+    pub fn new(locales_dir: &Utf8Path, default_locale: &str) -> Result<Translator, I18NError> {
         let mut translations = HashMap::new();
         let read_dir = ReadDir::new(&locales_dir).context(LocalesReadFailedSnafu {
             path: locales_dir.to_path_buf(),
@@ -69,13 +69,10 @@ impl Translator {
         })
     }
 
-    fn load_locale(locale: &Utf8Path) -> Result<Translation, Error> {
+    fn load_locale(locale: &Utf8Path) -> Result<Translation, I18NError> {
         let locale = StrPath::from(locale);
-        let locale_str = locale.read().context(LocalesReadFailedSnafu {
-            path: locale.to_path_buf(),
-        })?;
-        let locale_values = serde_json::from_str(&locale_str).context(LocalesLoadFailedSnafu {
-            path: locale.to_path_buf(),
+        let locale_values: Translation = locale.read_json().context(LocalesReadFailedSnafu {
+            path: locale.clone(),
         })?;
         Ok(locale_values)
     }
@@ -103,7 +100,7 @@ impl TranslatorInterface for Translator {
         }
     }
 
-    fn translate_no_context(&self, key: &str) -> Result<String, Error> {
+    fn translate_no_context(&self, key: &str) -> Result<String, I18NError> {
         // UNWRAP NOTE: If the language requested doesn't exist, this unwrap is the least of your worries
         // TODO: maybe check the language exists when we change it?!
         if let Some(locale) = self.translations.get(&self.locale) {
@@ -135,6 +132,7 @@ impl TranslatorInterface for Translator {
         };
         let val = locale.get(key).context(LocalesMissingKeySnafu {
             key: key.to_string(),
+            locale: self.locale.to_string(),
         })?;
         Ok(val.to_string())
     }
@@ -143,10 +141,11 @@ impl TranslatorInterface for Translator {
         &self,
         key: &str,
         context: HashMap<String, String>,
-    ) -> Result<String, Error> {
+    ) -> Result<String, I18NError> {
         let raw_translation = self.translate_no_context(key)?;
 
         strfmt::strfmt(&raw_translation, &context).context(LocalesFormattingSnafu {
+            locale: self.locale.to_string(),
             key: raw_translation.to_string(),
             args: context.clone(),
         })
