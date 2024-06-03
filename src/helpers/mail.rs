@@ -36,7 +36,15 @@ impl MailStorageUse {
         // Need to omit the first line which contains quota information, which we already have
         // TODO: error context
 
-        let lines: Vec<String> = p.read_lines()?.into_iter().skip(1).collect();
+        let lines: Vec<String> = p
+            .read_lines()
+            .context(FileSnafu)
+            .context(MailStorageLookupSnafu {
+                user: user.to_string(),
+            })?
+            .into_iter()
+            .skip(1)
+            .collect();
         let mut size_count: u64 = 0;
 
         // Each line has two entries separated by a space: the size count, and the mail count

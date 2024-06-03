@@ -1,23 +1,10 @@
 use camino::Utf8PathBuf;
 
-use std::path::PathBuf;
-
 use crate::helpers;
-use crate::helpers::file::StrPath;
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum Error {
-    // TODO: relocate
-    #[snafu(display("Failed to parse TOML from string"))]
-    Toml { source: toml::de::Error },
-
-    #[snafu(display("Failed to parse YAML from string"))]
-    Yaml { source: serde_yaml_ng::Error },
-
-    #[snafu(display("Failed to parse JSON from string"))]
-    Json { source: serde_json::Error },
-
     #[snafu(display("An error happened inside the config panel"))]
     ConfigPanel {
         source: helpers::configpanel::error::ConfigPanelError,
@@ -28,6 +15,11 @@ pub enum Error {
         source: helpers::i18n::error::I18NError,
     },
 
+    #[snafu(display("A file error occurred"))]
+    File {
+        source: helpers::file::error::FileError,
+    },
+
     // ===================
     // src/helpers/apt.rs
     // ===================
@@ -35,236 +27,24 @@ pub enum Error {
     //    fn change_dpkg_vendor
     #[snafu(display("Failed to read existing DPKG vendor"))]
     ChangeDPKGVendorRead {
-        #[snafu(source(from(Error, Box::new)))]
+        #[snafu(source(from(helpers::file::error::FileError, Box::new)))]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
     #[snafu(display("Failed to change DPKG vendor"))]
     ChangeDPKGVendorWrite {
-        #[snafu(source(from(Error, Box::from)))]
+        #[snafu(source(from(helpers::file::error::FileError, Box::from)))]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-
-    // ===================
-    // src/helpers/file.rs
-    // ===================
-    #[snafu(display("Failed to read ownership metadata for path: {path}"))]
-    PathOwnerMetadata {
-        path: StrPath,
-        source: file_owner::FileOwnerError,
-    },
-    #[snafu(display("Failed to lookup user information for owner of path: {path}"))]
-    PathOwnerName {
-        path: StrPath,
-        source: file_owner::FileOwnerError,
-    },
-    #[snafu(display("Failed to find username for owner of path: {path}"))]
-    PathOwnerNameNotFound { path: StrPath },
-
-    #[snafu(display("Failed to set owner {owner} for path {path}"))]
-    PathOwnerSet {
-        owner: String,
-        path: StrPath,
-        source: file_owner::FileOwnerError,
-    },
-
-    #[snafu(display("Failed to read group metadata for path: {path}"))]
-    PathGroupMetadata {
-        path: StrPath,
-        source: file_owner::FileOwnerError,
-    },
-    #[snafu(display("Failed to lookup group information for group of path: {path}"))]
-    PathGroupName {
-        path: StrPath,
-        source: file_owner::FileOwnerError,
-    },
-    #[snafu(display("Failed to find groupname for group of path: {path}"))]
-    PathGroupNameNotFound { path: StrPath },
-
-    #[snafu(display("Failed to set group {group} for path: {path}"))]
-    PathGroupSet {
-        group: String,
-        path: StrPath,
-        source: file_owner::FileOwnerError,
-    },
-
-    #[snafu(display("Failed to read permissions (mode) for path: {path}"))]
-    PathMode {
-        path: StrPath,
-        source: std::io::Error,
-    },
-
-    #[snafu(display("Failed to set permissions (mode) to {mode:o} for path: {path}"))]
-    PathModeSet {
-        mode: u32,
-        path: StrPath,
-        source: std::io::Error,
-    },
-
-    #[snafu(display("Failed to read metadata for path: {path}"))]
-    PathChownMetadata {
-        path: StrPath,
-        source: file_owner::FileOwnerError,
-    },
-
-    #[snafu(display("Failed to read owner information... see error above"))]
-    PathChownOwner {
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    #[snafu(display("Failed to read group information... see error above"))]
-    PathChownGroup {
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    #[snafu(display("Failed to chown {owner}:{group} for path: {path}"))]
-    PathChownSet {
-        owner: String,
-        group: String,
-        path: StrPath,
-        source: file_owner::FileOwnerError,
-    },
-
-    #[snafu(display("Failed to create recursive directory (mkdir -p) until path: {path}"))]
-    PathMkdirP {
-        path: StrPath,
-        source: std::io::Error,
-    },
-
-    #[snafu(display("Cannot copy {path} to {dest} because it is not a directory!"))]
-    PathCopyToNonDir { path: StrPath, dest: StrPath },
-
-    #[snafu(display("Failed to copy {path} to {dest}."))]
-    PathCopyFail {
-        path: StrPath,
-        dest: StrPath,
-        source: std::io::Error,
-    },
-
-    #[snafu(display("read failed to read {path}"))]
-    PathRead {
-        path: StrPath,
-        source: std::io::Error,
-    },
-
-    #[snafu(display("symlink failed to create a symlink to {target} due to failing to remove existing file: {link}"))]
-    PathSymlinkRemove {
-        target: StrPath,
-        link: StrPath,
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    #[snafu(display("symlink to create a symlink to {target} at: {link}"))]
-    PathSymlinkCreate {
-        target: StrPath,
-        link: StrPath,
-        source: std::io::Error,
-    },
-
-    #[snafu(display("file_remove failed to remove file {path}"))]
-    PathFileRemove {
-        path: StrPath,
-        source: std::io::Error,
-    },
-
-    #[snafu(display("canonicalize failed to resolve links of {path}"))]
-    PathCanonicalize {
-        path: StrPath,
-        source: std::io::Error,
-    },
-
-    #[snafu(display("Failed to read link from {link} because the target is not valid UTF-8"))]
-    PathCanonicalizeParse {
-        link: StrPath,
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    #[snafu(display(
-        "Failed to parse path because it's not valid UTF-8. It's approximately: {path}"
-    ))]
-    PathUnicode { path: String },
-
-    #[snafu(display("Failed to read_link on path because it's not a symlink: {path}"))]
-    PathReadLinkNotSymlink { path: StrPath },
-
-    #[snafu(display("Failed to read_link on path: {path}"))]
-    PathReadLink {
-        path: StrPath,
-        source: std::io::Error,
-    },
-
-    #[snafu(display("Failed to read link from {link} because the target is not valid UTF-8"))]
-    PathReadLinkParse {
-        link: StrPath,
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    PathTomlRead {
-        path: StrPath,
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    PathYamlRead {
-        path: StrPath,
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    PathJsonRead {
-        path: StrPath,
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    // -------
-
-    //    fn ensure_remove_file
-    #[snafu(display("ensure_file_remove failed to remove file {path}"))]
-    EnsureFileRemove {
-        path: StrPath,
-        #[snafu(source(from(Error, Box::new)))]
-        source: Box<dyn std::error::Error + Send + Sync>,
-    },
-
-    //    fn remove_file
-
-    //    fn symlink_create
-
-    //     fn read_dir_str / fn read_dir_filenames
-    #[snafu(display("read_dir failed to read {}", path))]
-    ReadDir {
-        path: Utf8PathBuf,
-        source: std::io::Error,
-    },
-
-    //     fn read
-    #[snafu(display("read failed to read {}", path))]
-    Read {
-        path: Utf8PathBuf,
-        source: std::io::Error,
-    },
-
-    #[snafu(display("Utf8PathBuf::from_path_buf failed because path is not valid UTF8: {}", path.display()))]
-    InvalidUnicodePath { path: PathBuf },
-
-    //     fn glob
-    #[snafu(display("glob invalid pattern: {}", pattern))]
-    GlobPattern {
-        pattern: String,
-        source: glob::PatternError,
-    },
-
-    #[snafu(display("glob invalid read: {}", source.path().display()))]
-    Glob { source: glob::GlobError },
 
     // ===================
     // src/helpers/distro.rs
     // ===================
+    #[snafu(display("Failed to read Debian version from disk"))]
+    Distro {
+        #[snafu(source(from(helpers::file::error::FileError, Box::from)))]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
     #[snafu(display(
         "Your system version {version} is unsupported by Yunohost (output of lsb-release -rs)"
     ))]
@@ -280,7 +60,7 @@ pub enum Error {
     ))]
     YunohostGroupExistsRead {
         name: String,
-        #[snafu(source(from(Error, Box::new)))]
+        #[snafu(source(from(helpers::file::error::FileError, Box::new)))]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
 

@@ -1,3 +1,5 @@
+use snafu::prelude::*;
+
 use std::str::FromStr;
 use std::sync::OnceLock;
 
@@ -28,7 +30,7 @@ impl FromStr for DebianRelease {
 impl DebianRelease {
     pub fn from_disk() -> Result<Self, Error> {
         let p = path("/etc/os-release");
-        let s = p.read()?;
+        let s = p.read().context(DistroSnafu)?;
         for line in s.lines() {
             if line.starts_with("VERSION_ID=") {
                 return Self::from_str(

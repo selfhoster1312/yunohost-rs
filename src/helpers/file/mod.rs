@@ -13,12 +13,13 @@ use std::fs;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::Path;
 
-use crate::error::*;
+pub mod error;
+use error::*;
 
 /// A high-level wrapper for paths.
 ///
 /// This type enables higher-level convenience methods for operations like read_dir (TODO), as well
-/// as integration with Yunohost [`Error`]. Inside is actually a [`Utf8PathBuf`],
+/// as integration with Yunohost [`FileError`]. Inside is actually a [`Utf8PathBuf`],
 /// and so it can also be used both as a standard library [`&str`] and [`Path`].
 ///
 /// `StrPath` can be build from any stringy value, like so:
@@ -37,11 +38,11 @@ impl StrPath {
     }
 
     /// Tries to parse a real Path into a StrPath. Fails if the path is not valid unicode.
-    pub fn from_path(path: &Path) -> Result<Self, Error> {
+    pub fn from_path(path: &Path) -> Result<Self, FileError> {
         if let Some(path) = path.to_str() {
             Ok(Self::new(path))
         } else {
-            Err(Error::PathUnicode {
+            Err(FileError::PathUnicode {
                 path: path.to_string_lossy().to_string(),
             })
         }
@@ -53,55 +54,55 @@ impl StrPath {
     }
 
     /// Lookup ownership information for this path.
-    pub fn owner_get(&self) -> Result<String, Error> {
+    pub fn owner_get(&self) -> Result<String, FileError> {
         let owner = self
             .as_path()
             .owner()
-            .context(PathOwnerMetadataSnafu { path: self.clone() })?
+            .context(PathOwnershipMetadataSnafu { path: self.clone() })?
             .name()
-            .context(PathOwnerNameSnafu { path: self.clone() })?
-            .context(PathOwnerNameNotFoundSnafu { path: self.clone() })?;
+            .context(PathOwnershipUserSnafu { path: self.clone() })?
+            .context(PathOwnershipUserNotFoundSnafu { path: self.clone() })?;
 
         Ok(owner)
     }
 
     /// Sets ownership information for this path. For both owner/group setting, use [`chown`](Self::chown).
-    pub fn owner_set(&self, owner: &str) -> Result<(), Error> {
-        self.set_owner(owner).context(PathOwnerSetSnafu {
+    pub fn owner_set(&self, owner: &str) -> Result<(), FileError> {
+        self.set_owner(owner).context(PathOwnershipSetUserSnafu {
             owner: owner.to_string(),
             path: self.clone(),
         })
     }
 
     /// Lookup group information for this path.
-    pub fn group_get(&self) -> Result<String, Error> {
+    pub fn group_get(&self) -> Result<String, FileError> {
         let group = self
             .as_path()
             .group()
-            .context(PathGroupMetadataSnafu { path: self.clone() })?
+            .context(PathOwnershipMetadataSnafu { path: self.clone() })?
             .name()
-            .context(PathGroupNameSnafu { path: self.clone() })?
-            .context(PathGroupNameNotFoundSnafu { path: self.clone() })?;
+            .context(PathOwnershipGroupSnafu { path: self.clone() })?
+            .context(PathOwnershipGroupNotFoundSnafu { path: self.clone() })?;
 
         Ok(group)
     }
 
     /// Sets group information for this path. For both owner/group setting, use [`chown`](Self::chown).
-    pub fn group_set(&self, group: &str) -> Result<(), Error> {
-        self.set_group(group).context(PathGroupSetSnafu {
+    pub fn group_set(&self, group: &str) -> Result<(), FileError> {
+        self.set_group(group).context(PathOwnershipSetGroupSnafu {
             group: group.to_string(),
             path: self.clone(),
         })
     }
 
     /// Lookup mode information for this path.
-    pub fn mode_get(&self) -> Result<u32, Error> {
+    pub fn mode_get(&self) -> Result<u32, FileError> {
         let meta = fs::metadata(&self).context(PathModeSnafu { path: self.clone() })?;
         Ok(meta.mode())
     }
 
     /// Sets mode information for this path.
-    pub fn mode_set(&self, mode: u32) -> Result<(), Error> {
+    pub fn mode_set(&self, mode: u32) -> Result<(), FileError> {
         fs::set_permissions(&self, fs::Permissions::from_mode(mode)).context(PathModeSetSnafu {
             path: self.clone(),
             mode,
@@ -110,30 +111,53 @@ impl StrPath {
 
     /// Sets both owner and group information for this path. Use [`owner_set`](Self::owner_set) or [`group_set`](Self::group_set)
     /// if that's not what you want.
-    pub fn chown(&self, req_owner: &str, req_group: &str) -> Result<(), Error> {
+    pub fn chown(&self, req_owner: &str, req_group: &str) -> Result<(), FileError> {
         let (owner, group) = self
             .owner_group()
-            .context(PathChownMetadataSnafu { path: self.clone() })?;
+            .context(PathOwnershipMetadataSnafu { path: self.clone() })
+            .context(PathChownSnafu {
+                owner: req_owner.to_string(),
+                group: req_group.to_string(),
+                path: self.clone(),
+            })?;
 
+        // TODO: this is a bit long, replacing file_owner crate would make it easier to articulate
         let found_owner = owner
             .name()
-            .context(PathOwnerNameSnafu { path: self.clone() })
+            .context(PathOwnershipUserSnafu { path: self.clone() })
             // Wrap in outer context so we don't need to duplicate error types
-            .context(PathChownOwnerSnafu)?
+            .context(PathChownSnafu {
+                owner: req_owner.to_string(),
+                group: req_group.to_string(),
+                path: self.clone(),
+            })?
             // Now we have to unwrap the inner option
-            .context(PathOwnerNameNotFoundSnafu { path: self.clone() })
+            .context(PathOwnershipUserNotFoundSnafu { path: self.clone() })
             // Wrap in outer context so we don't need to duplicate error types
-            .context(PathChownOwnerSnafu)?;
+            .context(PathChownSnafu {
+                owner: req_owner.to_string(),
+                group: req_group.to_string(),
+                path: self.clone(),
+            })?;
 
+        // TODO: this is a bit long, replacing file_owner crate would make it easier to articulate
         let found_group = group
             .name()
-            .context(PathGroupNameSnafu { path: self.clone() })
+            .context(PathOwnershipGroupSnafu { path: self.clone() })
             // Wrap in outer context so we don't need to duplicate error types
-            .context(PathChownGroupSnafu)?
+            .context(PathChownSnafu {
+                owner: req_owner.to_string(),
+                group: req_group.to_string(),
+                path: self.clone(),
+            })?
             // Now we have to unwrap the inner option
-            .context(PathGroupNameNotFoundSnafu { path: self.clone() })
+            .context(PathOwnershipGroupNotFoundSnafu { path: self.clone() })
             // Wrap in outer context so we don't need to duplicate error types
-            .context(PathChownGroupSnafu)?;
+            .context(PathChownSnafu {
+                owner: req_owner.to_string(),
+                group: req_group.to_string(),
+                path: self.clone(),
+            })?;
 
         if found_owner != req_owner || found_group != req_group {
             self.set_owner_group(req_owner, req_group)
@@ -148,7 +172,12 @@ impl StrPath {
     }
 
     /// Set mode and ownership information at the same time.
-    pub fn chown_and_mode(&self, mode: u32, user: &str, group: Option<&str>) -> Result<(), Error> {
+    pub fn chown_and_mode(
+        &self,
+        mode: u32,
+        user: &str,
+        group: Option<&str>,
+    ) -> Result<(), FileError> {
         self.mode_set(mode)?;
         if let Some(group) = group {
             self.chown(user, group)?;
@@ -160,7 +189,7 @@ impl StrPath {
     }
 
     /// Recursive chown operation
-    pub fn chown_recurse(&self, owner: &str, group: &str) -> Result<(), Error> {
+    pub fn chown_recurse(&self, owner: &str, group: &str) -> Result<(), FileError> {
         if self.is_dir() {
             // TODO: unwrap needs readdir...
             for entry in fs::read_dir(self).unwrap() {
@@ -176,12 +205,12 @@ impl StrPath {
     }
 
     /// Wrapper for [`Self::mode_set`]
-    pub fn chmod(&self, mode: u32) -> Result<(), Error> {
+    pub fn chmod(&self, mode: u32) -> Result<(), FileError> {
         self.mode_set(mode)
     }
 
     /// Recursive chmod operation.
-    pub fn chmod_recurse(&self, mode: u32) -> Result<(), Error> {
+    pub fn chmod_recurse(&self, mode: u32) -> Result<(), FileError> {
         if self.is_dir() {
             // TODO: unwrap here needs readdir integration
             for entry in fs::read_dir(self).unwrap() {
@@ -203,7 +232,7 @@ impl StrPath {
     /// Errors when:
     /// - the path did not previously exist and failed to be created
     /// - the path previously existed, but was not a directory? (TODO: is this true?)
-    pub fn mkdir_p(&self) -> Result<(), Error> {
+    pub fn mkdir_p(&self) -> Result<(), FileError> {
         if !self.is_dir() {
             fs::create_dir_all(self).context(PathMkdirPSnafu { path: self.clone() })?;
         }
@@ -216,15 +245,16 @@ impl StrPath {
     /// Errors when:
     /// - `dest` is not a directory
     /// - copying to `dest` failed
-    pub fn copy_to(&self, dest: &StrPath) -> Result<(), Error> {
+    pub fn copy_to(&self, dest: &StrPath) -> Result<(), FileError> {
         if !dest.is_dir() {
-            return Err(Error::PathCopyToNonDir {
+            return Err(FileError::PathCopyToNonDir {
                 path: self.clone(),
                 dest: dest.clone(),
             });
         }
 
         // UNWRAP NOTE: This should be safe, unless the filename is '..'. TODO: Should this be an error case?
+        // Or do we prevent it when creating StrPath?
         // See: https://doc.rust-lang.org/stable/std/path/struct.Path.html#method.file_name
         let file_name = self.file_name().unwrap();
         fs::copy(self, dest.join(file_name)).context(PathCopyFailSnafu {
@@ -241,7 +271,7 @@ impl StrPath {
     /// - the path does not exist or is not a file
     /// - the path is not readable
     /// - file content is not UTF-8
-    pub fn read(&self) -> Result<String, Error> {
+    pub fn read(&self) -> Result<String, FileError> {
         fs::read_to_string(self).context(PathReadSnafu { path: self.clone() })
     }
 
@@ -259,7 +289,7 @@ impl StrPath {
     /// - the path does not exist or is not a file
     /// - the path is not readable
     /// - file content is not UTF-8
-    pub fn read_lines(&self) -> Result<Vec<String>, Error> {
+    pub fn read_lines(&self) -> Result<Vec<String>, FileError> {
         Ok(self.read()?.lines().map(String::from).collect())
     }
 
@@ -270,7 +300,7 @@ impl StrPath {
     /// Errors when:
     ///   - `self` exists and `force` is not true
     ///   - creating the symlink failed
-    pub fn symlink_to_target(&self, target: &Utf8Path, force: bool) -> Result<(), Error> {
+    pub fn symlink_to_target(&self, target: &Utf8Path, force: bool) -> Result<(), FileError> {
         if force && self.exists() {
             self.file_remove().context(PathSymlinkRemoveSnafu {
                 target: StrPath::from(target),
@@ -292,7 +322,7 @@ impl StrPath {
     ///   - the file does not exist
     ///   - the file is not a file, but a directory
     ///   - removing the file failed
-    pub fn file_remove(&self) -> Result<(), Error> {
+    pub fn file_remove(&self) -> Result<(), FileError> {
         fs::remove_file(self).context(PathFileRemoveSnafu { path: self.clone() })?;
 
         Ok(())
@@ -304,7 +334,7 @@ impl StrPath {
     ///   - `path` does not exist
     ///   - an intermediate path is not a directory or does not exist
     ///   - the final path does not exist
-    pub fn canonicalize(&self) -> Result<Self, Error> {
+    pub fn canonicalize(&self) -> Result<Self, FileError> {
         let target = self
             .0
             .canonicalize()
@@ -319,9 +349,9 @@ impl StrPath {
     ///
     /// Errors when:
     /// - `path` does not exist, or is not a symlink
-    pub fn read_link(&self) -> Result<Self, Error> {
+    pub fn read_link(&self) -> Result<Self, FileError> {
         if !self.is_symlink() {
-            return Err(Error::PathReadLinkNotSymlink { path: self.clone() });
+            return Err(FileError::PathReadLinkNotSymlink { path: self.clone() });
         }
 
         let target = std::fs::read_link(&self).context(PathReadLinkSnafu { path: self.clone() })?;
@@ -334,7 +364,7 @@ impl StrPath {
     /// Errors when:
     /// - [`StrPath::read`] fails
     /// - `toml::from_str` fails
-    pub fn read_toml<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Error> {
+    pub fn read_toml<T: for<'a> Deserialize<'a>>(&self) -> Result<T, FileError> {
         let content = self
             .read()
             .context(PathTomlReadSnafu { path: self.clone() })?;
@@ -349,7 +379,7 @@ impl StrPath {
     /// Errors when:
     /// - [`StrPath::read`] fails
     /// - `toml::from_str` fails
-    pub fn read_yaml<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Error> {
+    pub fn read_yaml<T: for<'a> Deserialize<'a>>(&self) -> Result<T, FileError> {
         let content = self
             .read()
             .context(PathYamlReadSnafu { path: self.clone() })?;
@@ -364,7 +394,7 @@ impl StrPath {
     /// Errors when:
     /// - [`StrPath::read`] fails
     /// - `serde_json::from_str` fails
-    pub fn read_json<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Error> {
+    pub fn read_json<T: for<'a> Deserialize<'a>>(&self) -> Result<T, FileError> {
         let content = self
             .read()
             .context(PathJsonReadSnafu { path: self.clone() })?;
@@ -412,7 +442,7 @@ pub fn path<T: AsRef<str>>(path: T) -> StrPath {
 ///   - removing the file failed
 ///
 /// Does not error when the file does not exist.
-pub fn ensure_file_remove<T: AsRef<Path>>(path: T) -> Result<(), Error> {
+pub fn ensure_file_remove<T: AsRef<Path>>(path: T) -> Result<(), FileError> {
     let path = StrPath::from_path(path.as_ref())?;
     if path.is_file() {
         path.file_remove()
@@ -434,7 +464,7 @@ impl ReadDir {
     /// - `path` does not exist or is not a directory
     /// - we don't have sufficient permissions
     /// - intermittent IO errors
-    pub fn new<T: AsRef<Utf8Path>>(path: T) -> Result<ReadDir, Error> {
+    pub fn new<T: AsRef<Utf8Path>>(path: T) -> Result<ReadDir, FileError> {
         let path = path.as_ref().to_path_buf();
 
         let mut files: Vec<Utf8PathBuf> = vec![];
@@ -468,7 +498,7 @@ impl ReadDir {
     }
 }
 
-pub fn glob(pattern: &str) -> Result<Vec<Utf8PathBuf>, Error> {
+pub fn glob(pattern: &str) -> Result<Vec<Utf8PathBuf>, FileError> {
     let mut files: Vec<Utf8PathBuf> = vec![];
 
     for entry in glob::glob(pattern).context(GlobPatternSnafu {
@@ -478,7 +508,9 @@ pub fn glob(pattern: &str) -> Result<Vec<Utf8PathBuf>, Error> {
         let utf8_entry = match Utf8PathBuf::from_path_buf(entry) {
             Ok(p) => p,
             Err(entry_path) => {
-                return Err(Error::InvalidUnicodePath { path: entry_path });
+                return Err(FileError::PathUnicode {
+                    path: entry_path.to_string_lossy().to_string(),
+                });
             }
         };
         files.push(utf8_entry);

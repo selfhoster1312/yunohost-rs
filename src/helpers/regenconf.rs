@@ -132,7 +132,7 @@ pub fn _get_pending_conf(
     // If no categories specified, populate
     let categories = if categories.is_empty() {
         // Only take file names
-        ReadDir::new(&pending_dir)?.filenames()
+        ReadDir::new(&pending_dir).context(FileSnafu)?.filenames()
     } else {
         categories.to_vec()
     };
@@ -147,8 +147,9 @@ pub fn _get_pending_conf(
         let mut category_conf: BTreeMap<RelativeConfFile, PendingConfFile> = BTreeMap::new();
 
         // Only take files not folders
-        for path in
-            glob(&format!("{}/**/*", category_pending_path)).context(GetPendingConfGlobSnafu {
+        for path in glob(&format!("{}/**/*", category_pending_path))
+            .context(FileSnafu)
+            .context(GetPendingConfGlobSnafu {
                 category: name.to_string(),
                 path: category_pending_path.clone(),
             })?

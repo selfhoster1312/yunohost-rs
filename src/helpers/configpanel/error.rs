@@ -1,8 +1,7 @@
 use snafu::prelude::*;
 
 use super::filter_key::FilterKey;
-use crate::error::Error as YunohostError;
-use crate::helpers::file::StrPath;
+use crate::helpers::file::{error::FileError, StrPath};
 
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
@@ -18,7 +17,7 @@ pub enum ConfigPanelError {
     ConfigPanelConfigRead {
         entity: String,
         path: StrPath,
-        #[snafu(source(from(YunohostError, Box::new)))]
+        #[snafu(source(from(FileError, Box::new)))]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
 
@@ -28,7 +27,7 @@ pub enum ConfigPanelError {
     ConfigPanelSaveRead {
         entity: String,
         path: StrPath,
-        #[snafu(source(from(YunohostError, Box::new)))]
+        #[snafu(source(from(FileError, Box::new)))]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
 
